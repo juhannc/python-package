@@ -1,0 +1,28 @@
+{
+    "package_name": "My Python Package",
+    "package_slug": "{{ cookiecutter.package_name|lower()|replace(' ', '_')|replace('-', '_') }}",
+    "__project_slug": "{{ cookiecutter.package_slug.replace('_', '-') }}",
+    "short_description": "This package does...",
+    "python_version": "3.8",
+    "author_name": "Firstname Lastname",
+    "author_email": "name@example.org",
+    "version": "v0.0.0",
+    "license": ["MIT", "BSD-3", "GNU GPL v3.0", "CC BY-NC-SA 4.0 (non-commercial)", "Other (custom)"],
+    "use_pre_commit": true,
+    "git_host": ["GitHub", "GitLab", "Other"],
+    "max_line_length": 79,
+    "__year": "{% now 'utc', '%Y' %}",
+    "_extensions": ["jinja2_time.TimeExtension"],
+    "__prompts__": {
+        "package_name": "Select your package name",
+        "package_slug": "Select your package slug",
+        "short_description": "Short description",
+        "author_name": "Author full name",
+        "author_email": "Author email",
+        "version": "Initial version",
+        "license": "Select a license",
+        "use_pre_commit": "Use pre-commit hooks?",
+        "git_host": "Select your git provider",
+        "max_line_length": "Maximum line length"
+    }
+}

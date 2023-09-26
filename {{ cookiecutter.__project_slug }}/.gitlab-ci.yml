@@ -1,0 +1,234 @@
+variables: &global_variables
+  PACKAGENAME: {{ cookiecutter.package_slug }}
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+    - test
+    - deploy
+    - prepare
+    - release
+
+# CACHE
+cache:
+  key: ${CI_COMMIT_REF_NAME}
+  paths:
+    - .cache/pip/
+
+# Include the default GitLab CI jobs
+include:
+  - template: Code-Quality.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+
+# Anchors
+# https://docs.gitlab.com/ee/ci/yaml/README.html#anchors
+#
+# The before_script for pip installs all packages in a virtual environment.
+# If your package requires apt packages, you should add the install instructions
+# as the second step (before `pip3 install --upgrade pip`) in the before_script.
+.python_settings_template: &python_settings
+  image: python:${PYTHON_VERSION}
+  variables:
+    <<: *global_variables
+    PIP_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/pip/${PYTHON_VERSION}
+  parallel:
+    matrix:
+    - PYTHON_VERSION: ["{{ cookiecutter.python_version }}", ...]
+  before_script:
+    - pip3 install --upgrade pip
+    - python --version  # For debugging
+    - pip3 install virtualenv
+    - virtualenv venv/${PYTHON_VERSION}
+    - source venv/${PYTHON_VERSION}/bin/activate
+    - pip3 install --upgrade pip  # Upgrade again, now inside the venv
+    - pip3 install -e '.[tests]'
+
+# Test
+#
+# Run the code quality job from the template.
+# On later merge requests, the job will be inform you wether the code quality
+# has been improved or not. It can also decrease if you are not paying attention.
+code_quality:
+  stage: test
+  cache: []
+  artifacts:
+    paths: [gl-code-quality-report.json]
+
+# Run all tests defined in the `tests` folder and evaluate the coverage.
+# This way we can make sure the package passes all tests.
+# <https://docs.pytest.org/en/7.1.x/>
+pytest:
+  stage: test
+  needs: []
+  <<: *python_settings
+  script:
+    - |
+      pytest --cov=${PACKAGENAME}/ --cov-report term-missing --junitxml=report.xml tests/
+      coverage xml
+  coverage: /^TOTAL.+?(\d+\%)$/
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: report.xml
+
+# Look for common mistakes in the style of the code.
+# <https://flake8.pycqa.org/en/latest/>
+flake8:
+  stage: test
+  needs: []
+  <<: *python_settings
+  script:
+    - flake8 ${PACKAGENAME} || true
+  allow_failure: true
+
+# Analyzes the code for errors or bad practices.
+# This job is configured to skip the code in the `tests` folder and also
+# the virtual environment (inside `venv`), as we have no control over
+# the later.
+# <https://pylint.pycqa.org/en/latest/>
+pylint:
+  stage: test
+  needs: []
+  <<: *python_settings
+  script:
+  - pip3 install anybadge pylint-gitlab
+  - mkdir -p public/badges/${PYTHON_VERSION} public/lint/${PYTHON_VERSION}
+  - echo undefined > public/badges/${PYTHON_VERSION}/pylint.score
+  - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/venv/**" ! -path "**/tests/**") | tee public/lint/${PYTHON_VERSION}/pylint.log
+  - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' public/lint/${PYTHON_VERSION}/pylint.log > public/badges/${PYTHON_VERSION}/pylint.score
+  - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter $(find -type f -name "*.py" ! -path "**/venv/**" ! -path "**/tests/**") > codeclimate.json
+  - anybadge --overwrite --label "pylint (Python ${PYTHON_VERSION})" --value=$(cat public/badges/${PYTHON_VERSION}/pylint.score) --file=public/badges/${PYTHON_VERSION}/pylint.svg 4=red 6=orange 8=yellow 10=green
+  - |
+    echo "Your score is: $(cat public/badges/${PYTHON_VERSION}/pylint.score)"
+  artifacts:
+    paths:
+    - public
+    reports:
+      codequality: codeclimate.json
+    when: always
+
+# Run a static type checker.
+# Mypy checks the typing info of your package and can warn you,
+# when you are passing around incompatible types.
+# It also checks the type annotations of your functions.
+# <https://mypy.readthedocs.io/en/latest/>
+mypy:
+  stage: test
+  needs: []
+  <<: *python_settings
+  script:
+    - mypy ${PACKAGENAME} || true
+  allow_failure: true
+
+# Static Application Security Testing (SAST) can detect common security issues.
+# The job is modified to print the full report and summarize the results.
+# <https://docs.gitlab.com/ee/user/application_security/sast/>
+sast:
+  stage: test
+  needs: []
+  cache: []
+  artifacts:
+   name: sast
+   paths:
+     - gl-sast-report.json
+   reports:
+     sast: gl-sast-report.json
+   when: always
+  after_script:
+    - python -m json.tool gl-sast-report.json
+    - apk update && apk add jq
+    - N_VUL=$(jq '.vulnerabilities | length' gl-sast-report.json)
+    - |
+      if [ ${N_VUL} -gt 0 ]; then
+        echo "WARNING! ${N_VUL} vulnerabilities detected!"
+        exit 1
+      else
+        echo "All clear! No vulnerabilities detected!"
+      fi
+  allow_failure: true
+
+# Deploy
+#
+# This job builds the package into a whl file and deploys it to the projects registry.
+# It is only run on the default branch and only if the VERSION file changes.
+# This way, no two packages with the same version will be uploaded to the registry.
+# <https://docs.gitlab.com/ee/user/packages/pypi_repository/>
+publish:
+  stage: deploy
+  image: python:latest
+  needs: [pytest]
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never                                  # Do not run this job when a tag is created manually
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Run this job when commits are pushed or merged to the default branch
+      changes:                                     # AND the VERSION changes
+        - VERSION
+  artifacts:
+    paths:
+      - dist/
+    reports:
+      dotenv: publish.env # Use artifacts:reports:dotenv to expose the variables to other jobs
+  script:
+    - echo "PUBLISH_JOB_ID=${CI_JOB_ID}" >> publish.env
+    - pip3 install twine
+    - python3 setup.py sdist bdist_wheel
+    - >
+     TWINE_PASSWORD=${CI_JOB_TOKEN}
+     TWINE_USERNAME=gitlab-ci-token
+     python3 -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+
+# The next two jobs release the code on GitLab.
+# Afterwards, it will be available as a tag and a release on the GitLab repository.
+# These jobs will also be run on the default branch and only if the version changes.
+# <https://docs.gitlab.com/ee/user/project/releases/>
+# <https://docs.gitlab.com/ee/user/project/releases/#create-a-release-by-using-a-cicd-job>
+
+# Prepare
+prepare_job:
+  stage: prepare # This stage must run before the release stage
+  needs: [publish]
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never                                  # Do not run this job when a tag is created manually
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Run this job when commits are pushed or merged to the default branch
+      changes:                                     # AND the VERSION changes
+        - VERSION
+  script:
+    - echo "EXTRA_DESCRIPTION=New release for ${PACKAGENAME}." >> variables.env
+    - echo "VERSION=$(cat VERSION)" >> variables.env
+    - echo "TAG=v$(cat VERSION)" >> variables.env
+  artifacts:
+    reports:
+      dotenv: variables.env # Use artifacts:reports:dotenv to expose the variables to other jobs
+
+# Release
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: publish
+      artifacts: true
+    - job: prepare_job
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never                                  # Do not run this job when a tag is created manually
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Run this job when commits are pushed or merged to the default branch
+      changes:                                     # AND the VERSION changes
+        - VERSION
+  script:
+    - echo "running release_job for $TAG"
+  release:
+    name: "Release ${TAG}"
+    description: "${EXTRA_DESCRIPTION}"  # $EXTRA_DESCRIPTION and the $TAG
+    tag_name: "${TAG}"                   # variables must be defined elsewhere
+    ref: "${CI_COMMIT_SHA}"              # in the pipeline. For example, in the prepare_job
+    assets:
+      links:
+        # Here you can add links to the release if the package is available in more versions than `none-any`.
+        # See <https://peps.python.org/pep-0427/#file-format> for further information.
+        - name: "${PACKAGENAME}-${VERSION}-py3-none-any.whl"
+          url: "${CI_PROJECT_URL}/-/jobs/${PUBLISH_JOB_ID}/artifacts/file/dist/${PACKAGENAME}-${VERSION}-py3-none-any.whl"
+          link_type: package

@@ -1,0 +1,12 @@
+version: "2"
+plugins:
+  pycodestyle:
+    enabled: true
+    config:
+      max_line_length: {{ cookiecutter.max_line_length }}
+  sonar-python:
+    enabled: true
+    config:
+      minimum_severity: major
+  radon:
+    enabled: true
