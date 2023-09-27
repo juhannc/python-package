@@ -17,6 +17,7 @@
         "package_name": "Select your package name",
         "package_slug": "Select your package slug",
         "short_description": "Short description",
+        "python_version": "Minimum Python version",
         "author_name": "Author full name",
         "author_email": "Author email",
         "version": "Initial version",

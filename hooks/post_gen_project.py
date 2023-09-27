@@ -13,6 +13,7 @@ REMOVE_PATHS = [
 
 FIX_CI_FILES = [
     ".github/workflows/flake8.yml",
+    ".github/workflows/mypy.yml",
     ".github/workflows/pylint.yml",
     ".github/workflows/pytest.yml",
     ".gitlab-ci.yml",
