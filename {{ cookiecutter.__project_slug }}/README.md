@@ -27,13 +27,18 @@ Please see the following table with information what each job does and how it af
 {% elif cookiecutter.git_host == "GitLab" -%}
 | Job name | Stage | Short description | How it affects you/what you need to do |
 | -------- | ----- | ----------------- | -------------------------------------- |
+{%- if cookiecutter.use_pre_commit == "yes" %}
+| `pre-commit` | `.pre` | Runs the pre-commit pipeline. | Will fail if the pre-commit pipeline fails, can be modified to push resulting changes to autofix most problems.  |
+{%- endif %}
+| `install_deps` | `install_deps` | Installs and caches the package dependencies to speed up CI. | CI builds will be faster, as the dependencies are all already cached for later stages and future jobs.  |
 | `code_quality` | `test` | Runs the code quality job from the template. | Will notify you of increases or decrease of the code quality on a per merge request basis.  |
 | `pytest` | `test` | Runs all tests defined in the `tests` folder and evaluate the coverage. | Will notify you of increases or decrease of the coverage on a per merge request basis. Also updates the coverage badge (if set up). |
 | `flake8` | `test` | Looks for common mistakes in the style of the code. | On a regular basis, look through its output and determine if the recommendations are actionable. |
 | `pylint` | `test` | Analyzes the code for errors or bad practices. | On a regular basis, look through its output and determine if the recommendations are actionable. |
 | `mypy` | `test` | Runs a static type checker. | On a regular basis, look through its output and determine if the recommendations are actionable. |
-| `sast` | `test` | Static Application Security Testing (SAST) can detect common security issues. | On a regular basis, look through its output and determine if the recommendations are actionable. |
+| `test-docs` | `test` | Test builds the documentation. | Builds the documentation to ensure it can be build successfully (runs only on non-default branches). |
 | `publish` | `deploy` | Builds the package into a whl file and deploys it to the projects registry. | The built package gets pushed to the project's package registry, from where you can install it via `pip install`. Take a look the project's package registry for more details. |
+| `pages` | `deploy` | Builds the documentation. | The built documentation will be available as a GitLab page of this project. |
 | `prepare_job` | `prepare` | Runs preparation tasks for the `release_job` job. | No interaction required. |
 | `release_job` | `release` | Releases the bundled code in GitLab. | You can link to the release for others to easily download a specific version (equivalent to tag) of your code. |
 {% endif %}

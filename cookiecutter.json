@@ -11,6 +11,7 @@
     "use_pre_commit": true,
     "git_host": ["GitHub", "GitLab", "Other"],
     "max_line_length": 79,
+    "docstring_style": ["pep257", "numpy", "google"],
     "__year": "{% now 'utc', '%Y' %}",
     "_extensions": ["jinja2_time.TimeExtension"],
     "__prompts__": {
@@ -24,6 +25,7 @@
         "license": "Select a license",
         "use_pre_commit": "Use pre-commit hooks?",
         "git_host": "Select your git provider",
-        "max_line_length": "Maximum line length"
+        "max_line_length": "Maximum line length",
+        "docstring_style": "Select a docstring style"
     }
 }

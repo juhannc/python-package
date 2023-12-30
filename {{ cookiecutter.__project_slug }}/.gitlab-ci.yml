@@ -1,12 +1,16 @@
 variables: &global_variables
   PACKAGENAME: {{ cookiecutter.package_slug }}
   GIT_SUBMODULE_STRATEGY: recursive
+  FF_USE_FASTZIP: 'true'
+  ARTIFACT_COMPRESSION_LEVEL: fast
+  CACHE_COMPRESSION_LEVEL: fast
 
 stages:
-    - test
-    - deploy
-    - prepare
-    - release
+- install_deps
+- test
+- deploy
+- prepare
+- release
 
 # CACHE
 cache:
@@ -17,11 +21,18 @@ cache:
 # Include the default GitLab CI jobs
 include:
   - template: Code-Quality.gitlab-ci.yml
-  - template: Security/SAST.gitlab-ci.yml
+  - remote: https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml
 
 # Anchors
 # https://docs.gitlab.com/ee/ci/yaml/README.html#anchors
 #
+# pip cache
+.pip-cache: &pip-cache
+  key: python-${PYTHON_VERSION}
+  paths:
+  - .cache/pip/${PYTHON_VERSION}
+  policy: pull
+
 # The before_script for pip installs all packages in a virtual environment.
 # If your package requires apt packages, you should add the install instructions
 # as the second step (before `pip3 install --upgrade pip`) in the before_script.
@@ -33,6 +44,8 @@ include:
   parallel:
     matrix:
     - PYTHON_VERSION: ["{{ cookiecutter.python_version }}", ...]
+  cache:
+    <<: *pip-cache
   before_script:
     - pip3 install --upgrade pip
     - python --version  # For debugging
@@ -42,28 +55,52 @@ include:
     - pip3 install --upgrade pip  # Upgrade again, now inside the venv
     - pip3 install -e '.[tests]'
 
+{%- if cookiecutter.use_pre_commit == "yes" %}
+# Run pre-commit hooks
+#
+# This job runs all pre-commit hooks defined in `.pre-commit-config.yaml`.
+# Create a project access token (https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html)
+# and create a CI/CD variable PRE_COMMIT_ACCESS_TOKEN with the token
+# as a value (make sure this token is masked!)
+pre-commit:
+  image: ghcr.io/juhannc/pre-commit:3.11-slim  # Please find alternative images at <https://github.com/juhannc/pre-commit>.
+  cache:
+    key: pre-commit
+    paths:
+    - .cache/pre-commit
+  variables:
+    <<: *global_variables
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  before_script:
+  - pip install --upgrade pip pre-commit
+  - unset PRE_COMMIT_AUTO_FIX
+{%- endif %}
+
+# Install dependencies
+#
+# This job installs all dependencies of the package.
+install_deps:
+  stage: install_deps
+  <<: *python_settings
+  cache:
+    <<: *pip-cache
+    policy: pull-push
+  script:
+  - pip3 install -e '.[docs,tests]'
+
 # Test
 #
-# Run the code quality job from the template.
-# On later merge requests, the job will be inform you wether the code quality
-# has been improved or not. It can also decrease if you are not paying attention.
-code_quality:
-  stage: test
-  cache: []
-  artifacts:
-    paths: [gl-code-quality-report.json]
-
 # Run all tests defined in the `tests` folder and evaluate the coverage.
 # This way we can make sure the package passes all tests.
 # <https://docs.pytest.org/en/7.1.x/>
 pytest:
   stage: test
-  needs: []
+  needs: [install_deps]
   <<: *python_settings
   script:
-    - |
-      pytest --cov=${PACKAGENAME}/ --cov-report term-missing --junitxml=report.xml tests/
-      coverage xml
+  - |
+    pytest --cov=${PACKAGENAME}/ --cov-report term-missing --junitxml=report.xml tests/
+    coverage xml
   coverage: /^TOTAL.+?(\d+\%)$/
   artifacts:
     when: always
@@ -77,11 +114,13 @@ pytest:
 # <https://flake8.pycqa.org/en/latest/>
 flake8:
   stage: test
-  needs: []
+  needs: [install_deps]
   <<: *python_settings
+  parallel:
+    matrix:
+    - PYTHON_VERSION: ['{{ cookiecutter.python_version }}']
   script:
-    - flake8 ${PACKAGENAME} || true
-  allow_failure: true
+    - flake8 ${PACKAGENAME}
 
 # Analyzes the code for errors or bad practices.
 # This job is configured to skip the code in the `tests` folder and also
@@ -90,8 +129,11 @@ flake8:
 # <https://pylint.pycqa.org/en/latest/>
 pylint:
   stage: test
-  needs: []
+  needs: [install_deps]
   <<: *python_settings
+  parallel:
+    matrix:
+    - PYTHON_VERSION: ['{{ cookiecutter.python_version }}']
   script:
   - pip3 install anybadge pylint-gitlab
   - mkdir -p public/badges/${PYTHON_VERSION} public/lint/${PYTHON_VERSION}
@@ -116,38 +158,27 @@ pylint:
 # <https://mypy.readthedocs.io/en/latest/>
 mypy:
   stage: test
-  needs: []
+  needs: [install_deps]
   <<: *python_settings
+  parallel:
+    matrix:
+    - PYTHON_VERSION: ['{{ cookiecutter.python_version }}']
   script:
-    - mypy ${PACKAGENAME} || true
-  allow_failure: true
+    - mypy ${PACKAGENAME}
 
-# Static Application Security Testing (SAST) can detect common security issues.
-# The job is modified to print the full report and summarize the results.
-# <https://docs.gitlab.com/ee/user/application_security/sast/>
-sast:
+# Test the documentation build process.
+test-docs:
   stage: test
-  needs: []
-  cache: []
-  artifacts:
-   name: sast
-   paths:
-     - gl-sast-report.json
-   reports:
-     sast: gl-sast-report.json
-   when: always
-  after_script:
-    - python -m json.tool gl-sast-report.json
-    - apk update && apk add jq
-    - N_VUL=$(jq '.vulnerabilities | length' gl-sast-report.json)
-    - |
-      if [ ${N_VUL} -gt 0 ]; then
-        echo "WARNING! ${N_VUL} vulnerabilities detected!"
-        exit 1
-      else
-        echo "All clear! No vulnerabilities detected!"
-      fi
-  allow_failure: true
+  needs: [install_deps]
+  <<: *python_settings
+  parallel:
+    matrix:
+    - PYTHON_VERSION: ['3.11']
+  script:
+  - pip install -e '.[docs]'
+  - sphinx-build -b html ./docs public
+  rules:
+  - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
 
 # Deploy
 #
@@ -160,24 +191,41 @@ publish:
   image: python:latest
   needs: [pytest]
   rules:
-    - if: $CI_COMMIT_TAG
-      when: never                                  # Do not run this job when a tag is created manually
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Run this job when commits are pushed or merged to the default branch
-      changes:                                     # AND the VERSION changes
-        - VERSION
+  - if: $CI_COMMIT_TAG
+    when: never                                    # Do not run this job when a tag is created manually
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH    # Run this job when commits are pushed or merged to the default branch
+    changes:                                       # AND the VERSION changes
+    - VERSION
   artifacts:
     paths:
-      - dist/
+    - dist/
     reports:
       dotenv: publish.env # Use artifacts:reports:dotenv to expose the variables to other jobs
   script:
-    - echo "PUBLISH_JOB_ID=${CI_JOB_ID}" >> publish.env
-    - pip3 install twine
-    - python3 setup.py sdist bdist_wheel
-    - >
-     TWINE_PASSWORD=${CI_JOB_TOKEN}
-     TWINE_USERNAME=gitlab-ci-token
-     python3 -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+  - echo "PUBLISH_JOB_ID=${CI_JOB_ID}" >> publish.env
+  - pip3 install build twine
+  - python3 -m build
+  - >
+    TWINE_PASSWORD=${CI_JOB_TOKEN}
+    TWINE_USERNAME=gitlab-ci-token
+    python3 -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+
+# Build the documentation.
+pages:
+  stage: deploy
+  needs: [install_deps]
+  <<: *python_settings
+  parallel:
+    matrix:
+    - PYTHON_VERSION: ['3.11']
+  script:
+  - pip install -e '.[docs]'
+  - sphinx-build -b html ./docs public
+  artifacts:
+    paths:
+    - public
+  rules:
+  - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
 
 # The next two jobs release the code on GitLab.
 # Afterwards, it will be available as a tag and a release on the GitLab repository.
@@ -190,15 +238,15 @@ prepare_job:
   stage: prepare # This stage must run before the release stage
   needs: [publish]
   rules:
-    - if: $CI_COMMIT_TAG
-      when: never                                  # Do not run this job when a tag is created manually
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Run this job when commits are pushed or merged to the default branch
-      changes:                                     # AND the VERSION changes
-        - VERSION
+  - if: $CI_COMMIT_TAG
+    when: never                                    # Do not run this job when a tag is created manually
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH    # Run this job when commits are pushed or merged to the default branch
+    changes:                                       # AND the VERSION changes
+    - VERSION
   script:
-    - echo "EXTRA_DESCRIPTION=New release for ${PACKAGENAME}." >> variables.env
-    - echo "VERSION=$(cat VERSION)" >> variables.env
-    - echo "TAG=v$(cat VERSION)" >> variables.env
+  - echo "EXTRA_DESCRIPTION=New release for ${PACKAGENAME}." >> variables.env
+  - echo "VERSION=$(cat VERSION)" >> variables.env
+  - echo "TAG=v$(cat VERSION)" >> variables.env
   artifacts:
     reports:
       dotenv: variables.env # Use artifacts:reports:dotenv to expose the variables to other jobs
@@ -208,27 +256,27 @@ release_job:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   needs:
-    - job: publish
-      artifacts: true
-    - job: prepare_job
-      artifacts: true
+  - job: publish
+    artifacts: true
+  - job: prepare_job
+    artifacts: true
   rules:
-    - if: $CI_COMMIT_TAG
-      when: never                                  # Do not run this job when a tag is created manually
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Run this job when commits are pushed or merged to the default branch
-      changes:                                     # AND the VERSION changes
-        - VERSION
+  - if: $CI_COMMIT_TAG
+    when: never                                    # Do not run this job when a tag is created manually
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH    # Run this job when commits are pushed or merged to the default branch
+    changes:                                       # AND the VERSION changes
+    - VERSION
   script:
-    - echo "running release_job for $TAG"
+  - echo "running release_job for $TAG"
   release:
-    name: "Release ${TAG}"
-    description: "${EXTRA_DESCRIPTION}"  # $EXTRA_DESCRIPTION and the $TAG
-    tag_name: "${TAG}"                   # variables must be defined elsewhere
-    ref: "${CI_COMMIT_SHA}"              # in the pipeline. For example, in the prepare_job
+    name: Release ${TAG}
+    description: ${EXTRA_DESCRIPTION}    # $EXTRA_DESCRIPTION and the $TAG
+    tag_name: ${TAG}                     # variables must be defined elsewhere
+    ref: ${CI_COMMIT_SHA}                # in the pipeline. For example, in the prepare_job
     assets:
       links:
         # Here you can add links to the release if the package is available in more versions than `none-any`.
         # See <https://peps.python.org/pep-0427/#file-format> for further information.
-        - name: "${PACKAGENAME}-${VERSION}-py3-none-any.whl"
-          url: "${CI_PROJECT_URL}/-/jobs/${PUBLISH_JOB_ID}/artifacts/file/dist/${PACKAGENAME}-${VERSION}-py3-none-any.whl"
-          link_type: package
+      - name: ${PACKAGENAME}-${VERSION}-py3-none-any.whl
+        url: ${CI_PROJECT_URL}/-/jobs/${PUBLISH_JOB_ID}/artifacts/file/dist/${PACKAGENAME}-${VERSION}-py3-none-any.whl
+        link_type: package

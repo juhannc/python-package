@@ -1,6 +1,142 @@
 [build-system]
-requires = [
-  "setuptools >= 43.0.0",
-  "wheel",
-]
 build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools >= 62.3.0",
+  "wheel"
+]
+
+[project]
+authors = [{name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}"}]
+# TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
+classifiers = [
+    "Intended Audience :: Science/Research",
+{%- if cookiecutter.license == "MIT" %}
+    "License :: OSI Approved :: MIT License",
+{%- elif cookiecutter.license == "BSD-3" %}
+    "License :: OSI Approved :: BSD License",
+{%- elif cookiecutter.license == "GNU GPL v3.0" %}
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+{%- elif cookiecutter.license == "CC BY-NC-SA 4.0 (non-commercial)" %}
+    "License :: Free for non-commercial use",
+{%- endif %}
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: {{ cookiecutter.python_version }}"
+]
+# TODO @{{ cookiecutter.author_email }}: add dependencies here
+dependencies = []
+description = {{ cookiecutter.short_description }}
+dynamic = ["version"]
+{%- if cookiecutter.license == "MIT" %}
+license = {text = "MIT"}
+{%- elif cookiecutter.license == "BSD-3" %}
+license = {text = "BSD 3-Clause"}
+{%- elif cookiecutter.license == "GNU GPL v3.0" %}
+license = {text = "GNU General Public License v3 (GPLv3)"}
+{%- elif cookiecutter.license == "CC BY-NC-SA 4.0 (non-commercial)" %}
+license = {text = "CC BY-NC-SA 4.0"}
+{%- elif cookiecutter.license == "Other (custom)" %}
+# TODO @{{ cookiecutter.author_email }}: add license here
+license = {text = "Other"}
+{%- endif %}
+name = "{{ cookiecutter.package_slug }}"
+requires-python = ">={{ cookiecutter.python_version }}"
+
+[project.optional-dependencies]
+{%- if cookiecutter.use_pre_commit == "yes" %}
+all = ["{{ cookiecutter.package_slug }}[dev,docs,tests]"]
+dev = ["pre-commit>=3.5.0"]
+{%- else %}
+all = ["{{ cookiecutter.package_slug }}[docs,tests]"]
+{%- endif %}
+docs = [
+  "sphinx",
+  "sphinx-autodoc-typehints",
+  "sphinx-rtd-theme",
+  "sphinx-autoapi"
+]
+tests = [
+  "coverage",
+  "flake8-bugbear",
+  "flake8-builtins",
+  "flake8-comprehensions",
+  "flake8-docstrings-complete",
+  "flake8-docstrings",
+  "flake8-pyproject",
+  "flake8-simplify",
+  "flake8",
+  "mypy",
+  "pep8-naming",
+  "pycodestyle",
+  "pydoclint",
+  "pytest-cov",
+  "pytest>=7.4.0"
+]
+
+[project.readme]
+content-type = "text/markdown; charset=UTF-8"
+file = "README.md"
+
+[project.urls]
+# Documentation =  # TODO @{{ cookiecutter.author_email }}: add documentation URL here
+# Homepage =  # TODO @{{ cookiecutter.author_email }}: add homepage URL here (probably same as either documentation or source)
+# TODO @{{ cookiecutter.author_email }}: add project url here
+{%- if cookiecutter.git_host == "GitHub" %}
+# Source = https://github.com/[username or org]/{{ cookiecutter.__project_slug }}.git
+{%- elif cookiecutter.git_host == "GitLab" %}
+# Source = https://gitlab.com/[path]/{{ cookiecutter.__project_slug }}.git
+{%- else %}
+# Source =
+{%- endif %}
+# TODO @{{ cookiecutter.author_email }}: add tracker url here
+{%- if cookiecutter.git_host == "GitHub" %}
+# Tracker = https://github.com/[username or org]/{{ cookiecutter.__project_slug }}/issues
+{%- elif cookiecutter.git_host == "GitLab" %}
+# Tracker = https://gitlab.com/[path]/{{ cookiecutter.__project_slug }}/-/issues
+{%- else %}
+# Tracker =
+{%- endif %}
+
+[tool.flake8]
+check-return-types = true
+# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
+# SIM300: Yoda conditions might be more reliable but not more readable
+{%- if cookiecutter.docstring_style == "google" %}
+# D107: Google docstring style prevents docstrings in __init__ function
+{%- endif %}
+# D401: Imperative mood is not always detectet correctly
+{%- if cookiecutter.docstring_style == "google" %}
+# DCO010: Google docstring style prevents docstrings in __init__ function <https://github.com/jdkandersson/flake8-docstrings-complete/issues/15>
+extend-ignore = "E203, SIM300, D107, D401, DCO010"
+{%- else %}
+extend-ignore = "E203, SIM300, D401"
+{%- endif %}
+max-complexity = "10"
+max-line-length = "{{ cookiecutter.max_line_length }}"
+# **/__init__.py: Ignore docstring style for __init__.py files
+# tests/*: Ignore docstring style for tests
+per-file-ignores = [
+  "**/__init__.py: D",
+  "tests/*: D"
+]
+style = "{{ cookiecutter.docstring_style }}"
+
+[tool.mypy]
+ignore_missing_imports = true
+# plugins = ["numpy.typing.mypy_plugin"]  # TODO @{{ cookiecutter.author_email }}: activate if you are using numpy
+python_version = "{{ cookiecutter.python_version }}"
+
+[tool.setuptools]
+include-package-data = true
+license-files = ["LICENSE"]
+# TODO @{{ cookiecutter.author_email }}: update the platforms <https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/>.
+platforms = [
+  "manylinux2014_x86_64"
+]
+zip-safe = false
+
+[tool.setuptools.dynamic]
+version = {file = ["VERSION"]}
+
+[tool.setuptools.packages]
+find = {namespaces = false}
