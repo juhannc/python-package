@@ -1,7 +1,7 @@
 import re
 import sys
 
-VERSION_REGEX = r"^v(\d+\.)?(\d+\.)?(\*|\d+)$"
+VERSION_REGEX = r"^(\d+\.)?(\d+\.)?(\*|\d+)$"
 
 version = "{{ cookiecutter.version }}"
 

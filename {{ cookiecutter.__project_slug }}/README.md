@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+
+SPDX-License-Identifier: {{ cookiecutter.license }}
+-->
 # {{ cookiecutter.package_name }}
 
 {{ cookiecutter.short_description }}
@@ -16,14 +21,14 @@ Thus, there are some job logs you should check by yourself from time to time.
 Please see the following table with information what each job does and how it affects you.
 
 {% if cookiecutter.git_host == "GitHub" -%}
-| Job name | Short description | How it affects you/what you need to do |
-| -------- | ----------------- | -------------------------------------- |
-| `pytest` | Runs all tests defined in the `tests` folder and evaluate the coverage. | Will notify you of increases or decrease of the coverage on a per merge request basis. Also updates the coverage badge (if set up). |
-| `flake8` | Looks for common mistakes in the style of the code. | On a regular basis, look through its output and determine if the recommendations are actionable. |
-| `pylint` | Analyzes the code for errors or bad practices. | On a regular basis, look through its output and determine if the recommendations are actionable. |
-| `mypy` | Runs a static type checker. | On a regular basis, look through its output and determine if the recommendations are actionable. |
+| Job name  | Short description                                                           | How it affects you/what you need to do                                                                                                                             |
+| --------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pytest`  | Runs all tests defined in the `tests` folder and evaluate the coverage.     | Will notify you of increases or decrease of the coverage on a per merge request basis. Also updates the coverage badge (if set up).                                |
+| `flake8`  | Looks for common mistakes in the style of the code.                         | On a regular basis, look through its output and determine if the recommendations are actionable.                                                                   |
+| `pylint`  | Analyzes the code for errors or bad practices.                              | On a regular basis, look through its output and determine if the recommendations are actionable.                                                                   |
+| `mypy`    | Runs a static type checker.                                                 | On a regular basis, look through its output and determine if the recommendations are actionable.                                                                   |
 | `publish` | Builds the package into a whl file and publishes it to <https://pypi.org/>. | The built package gets pushed to <https://pypi.org/>, from where you can install it via `pip install`. Requires a PyPI API token, see [New Release](#New-Release). |
-| `release` | Releases the bundled code in GitHub. | You can link to the release for others to easily download a specific version (equivalent to tag) of your code. Runs on new tags of the format `v*.*.*`. |
+| `release` | Releases the bundled code in GitHub.                                        | You can link to the release for others to easily download a specific version (equivalent to tag) of your code. Runs on new tags of the format `v*.*.*`.            |
 {% elif cookiecutter.git_host == "GitLab" -%}
 | Job name | Stage | Short description | How it affects you/what you need to do |
 | -------- | ----- | ----------------- | -------------------------------------- |
@@ -48,7 +53,6 @@ After installing the project via cookiecutter, you have to make minor changes to
 Once you finished the changes, feel free to delete this section.
 Most changes can be found via the TODO tag (`# TODO @{{ cookiecutter.author_email }}:`) and should be rather self-explanatory.
 Nevertheless, following is some further information.
-
 {% if cookiecutter.git_host == "GitHub" -%}
 ### CI/CD: [`.github/workflows/`](./.github/workflows/)
 
@@ -107,9 +111,9 @@ For example, if you want to run `pytest`, `flake8`, `pylint`, and `mypy` against
 ```
 {%- endif %}
 
-### [`setup.cfg`](./setup.cfg)
+### [`pyproject.toml`](./pyproject.toml)
 
-In the [`setup.cfg`](./setup.cfg), there are some places, you have to manually update.
+In the [`pyproject.toml`](./pyproject.toml), there are some places, you have to manually update.
 This is mostly the project url in the GitLab.
 We don't know the url a priori and thus cannot prepare it.
 
@@ -144,12 +148,12 @@ They can help to display important information, such as the CI status, the lates
 Here is a list of interesting badges, one might like to add to the project.
 To add them to your project, go to `Settings` -> `General` (in the left burger menu) -> `Badges`.
 
-| Name | Link | Badge image URL | Note |
-| ---- | ---- | --------------- | ---- |
-| pipeline status | <https://gitlab.com/%{project_path}/-/commits/%{default_branch}> | <https://gitlab.com/%{project_path}/badges/%{default_branch}/pipeline.svg> | Auto-generated by GitLab |
-| coverage | <https://gitlab.com/%{project_path}/-/commits/%{default_branch}> | <https://gitlab.com/%{project_path}/badges/%{default_branch}/coverage.svg> | Requires tests in the `tests` folder and the `pytest` job |
-| pylint | <https://gitlab.com/%{project_path}/-/jobs/artifacts/%{default_branch}/raw/public/lint/{{ cookiecutter.python_version }}/pylint.log?job=pylint> | <https://gitlab.com/%{project_path}/-/jobs/artifacts/%{default_branch}/raw/public/badges/{{ cookiecutter.python_version }}/pylint.svg?job=pylint: [{{ cookiecutter.python_version }}]> | Requires the `pylint` job |
-| release | <https://gitlab.com/%{project_path}/-/releases> | <https://gitlab.com/%{project_path}/-/badges/release.svg> | Requires the `publish`, `prepare_job`, `release_job` jobs, links to the most recent release |
+| Name            | Link                                                                                                                                            | Badge image URL                                                                                                                                                                        | Note                                                                                        |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| pipeline status | <https://gitlab.com/%{project_path}/-/commits/%{default_branch}>                                                                                | <https://gitlab.com/%{project_path}/badges/%{default_branch}/pipeline.svg>                                                                                                             | Auto-generated by GitLab                                                                    |
+| coverage        | <https://gitlab.com/%{project_path}/-/commits/%{default_branch}>                                                                                | <https://gitlab.com/%{project_path}/badges/%{default_branch}/coverage.svg>                                                                                                             | Requires tests in the `tests` folder and the `pytest` job                                   |
+| pylint          | <https://gitlab.com/%{project_path}/-/jobs/artifacts/%{default_branch}/raw/public/lint/{{ cookiecutter.python_version }}/pylint.log?job=pylint> | <https://gitlab.com/%{project_path}/-/jobs/artifacts/%{default_branch}/raw/public/badges/{{ cookiecutter.python_version }}/pylint.svg?job=pylint: [{{ cookiecutter.python_version }}]> | Requires the `pylint` job                                                                   |
+| release         | <https://gitlab.com/%{project_path}/-/releases>                                                                                                 | <https://gitlab.com/%{project_path}/-/badges/release.svg>                                                                                                                              | Requires the `publish`, `prepare_job`, `release_job` jobs, links to the most recent release |
 
 ### Note regarding the `pylint` badges
 
@@ -183,7 +187,7 @@ If you want to have _all_ the dependencies installed, use
 python3 -m pip install -e '.[all]'
 ```
 
-{%- if cookiecutter.use_pre_commit %}
+{% if cookiecutter.use_pre_commit %}
 This step is required if you are using pre-commit hooks.
 Finally, to install the pre-commit hooks, run
 

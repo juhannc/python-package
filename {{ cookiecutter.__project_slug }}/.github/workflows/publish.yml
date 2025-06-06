@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+#
+# SPDX-License-Identifier: {{ cookiecutter.license }}
 # This workflow will upload a Python Package using Twine when a release is created
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
 

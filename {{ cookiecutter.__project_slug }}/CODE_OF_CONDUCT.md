@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+
+SPDX-License-Identifier: {{ cookiecutter.license }}
+-->
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

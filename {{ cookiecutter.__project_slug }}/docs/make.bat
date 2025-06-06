@@ -1,3 +1,6 @@
+@REM SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+@REM
+@REM SPDX-License-Identifier: {{ cookiecutter.license }}
 @ECHO OFF
 
 pushd %~dp0

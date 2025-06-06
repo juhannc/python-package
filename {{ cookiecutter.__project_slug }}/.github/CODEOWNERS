@@ -1,2 +1,5 @@
+# SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+#
+# SPDX-License-Identifier: {{ cookiecutter.license }}
 # TODO @{{ cookiecutter.author_email }}: Add at least yourself as a code owner like so:
 # * @<your-github-username>
