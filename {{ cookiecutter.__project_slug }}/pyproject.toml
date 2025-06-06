@@ -33,11 +33,7 @@ name = "{{ cookiecutter.package_slug }}"
 requires-python = ">={{ cookiecutter.python_version }}"
 
 [project.optional-dependencies]
-all = [
-  { include-group = "dev" },
-  { include-group = "docs" },
-  { include-group = "tests" },
-]
+all = ["{{ cookiecutter.package_slug }}[dev,docs,tests]"]
 dev = ["pre-commit>=3.5.0"]
 docs = [
   "sphinx",
