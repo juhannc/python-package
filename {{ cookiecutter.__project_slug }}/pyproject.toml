@@ -21,7 +21,8 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: {{ cookiecutter.python_version }}"
-]# TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/authors = [description = @{{ cookiecutter.short_description }}
+]# TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
+description = "{{ cookiecutter.short_description }}"
 authors = [
   { name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}" },
 ]
