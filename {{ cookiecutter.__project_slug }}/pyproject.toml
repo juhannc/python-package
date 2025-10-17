@@ -1,9 +1,40 @@
 # SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
 #
 # SPDX-License-Identifier: {{ cookiecutter.license }}
+
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ["setuptools >= 62.3.0", "wheel"]
+build-backend = "uv_build"
+requires = ["uv_build>=0.8.11"]
+
+[dependency-groups]
+ci = [
+  "anybadge",
+  "codeclimate-test-reporter",
+  "flake8-docstrings-complete",
+  "flake8-docstrings",
+  "flake8-gl-codeclimate",
+  "flake8-pyproject",
+  "flake8",
+  "mypy-gitlab-code-quality",
+  "mypy",
+  "pylint-gitlab",
+  "pylint-per-file-ignores",
+  "pylint"
+]
+dev = [
+  "bpython>=0.25",
+  "prek>=0.2.1",
+  "reuse>=5.1.1",
+  "ruff>=0.13.3",
+  "uv>=0.8.11"
+]
+docs = [
+  "sphinx-autoapi",
+  "sphinx-autodoc-typehints",
+  "sphinx-rtd-theme",
+  "sphinx"
+]
+tests = ["coverage", "pytest-cov", "pytest>=7.4.0"]
 
 [project]
 classifiers = [
@@ -20,49 +51,20 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: {{ cookiecutter.python_version }}"
+    "Programming Language :: Python :: {{ cookiecutter.python_version }}",
+    "Typing :: Typed",
 ]# TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
 description = "{{ cookiecutter.short_description }}"
 authors = [
-  { name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}" },
+  { name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}" }
 ]
 # TODO @{{ cookiecutter.author_email }}: add dependencies here
 dependencies = []
-dynamic = ["version"]
 license = { file = "LICENSES/{{ cookiecutter.license }}.txt" }
 name = "{{ cookiecutter.package_slug }}"
+readme = "README.md"
 requires-python = ">={{ cookiecutter.python_version }}"
-
-[project.optional-dependencies]
-all = ["{{ cookiecutter.package_slug }}[dev,docs,tests]"]
-dev = ["pre-commit>=3.5.0"]
-docs = [
-  "sphinx",
-  "sphinx-autodoc-typehints",
-  "sphinx-rtd-theme",
-  "sphinx-autoapi",
-]
-tests = [
-  "coverage",
-  "flake8-bugbear",
-  "flake8-builtins",
-  "flake8-comprehensions",
-  "flake8-docstrings-complete",
-  "flake8-docstrings",
-  "flake8-pyproject",
-  "flake8-simplify",
-  "flake8",
-  "mypy",
-  "pep8-naming",
-  "pycodestyle",
-  "pydoclint",
-  "pytest-cov",
-  "pytest>=7.4.0",
-]
-
-[project.readme]
-content-type = "text/markdown; charset=UTF-8"
-file = "README.md"
+version = "0.0.0"
 
 [project.urls]
 # TODO @{{ cookiecutter.author_email }}: add URLs here
@@ -76,35 +78,130 @@ check-return-types = true
 # E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
 # SIM300: Yoda conditions might be more reliable but not more readable
 # D107: Google docstring style prevents docstrings in __init__ function
-# D401: Imperative mood is not always detectet correctly
+# D401: Imperative mood is not always detected correctly
 # DCO010: Google docstring style prevents docstrings in __init__ function <https://github.com/jdkandersson/flake8-docstrings-complete/issues/15>
-extend-ignore = "E203, SIM300, D107, D401, DCO010"
+# DCO060: Attributes are often superfluous in __init__ functions
+# D105, DOC201, DOC202: Docstrings in standard magic methods are superfluous
+extend-ignore = "E203, SIM300, D107, D401, DCO010, DCO060, D105, DOC201, DOC203"
 max-complexity = "10"
-max-line-length = "88"
-# **/__init__.py: Ignore docstring style for __init__.py files
-# tests/*: Ignore docstring style for tests
-per-file-ignores = ["**/__init__.py: D", "tests/*: D"]
+max-line-length = "{{ cookiecutter.max_line_length }}"
+# tests/*: Ignore docstring style and too long lines for tests
+per-file-ignores = ["tests/*: D,E501"]
 style = "google"
+
+[tool.licensecheck]
+ignore_packages = []
+using = "PEP631"
 
 [tool.mypy]
 ignore_missing_imports = true
-# plugins = ["numpy.typing.mypy_plugin"]  # TODO @{{ cookiecutter.author_email }}: activate if you are using numpy
 python_version = "{{ cookiecutter.python_version }}"
 
-[tool.setuptools]
-include-package-data = true
-license-files = ["LICENSES/"]
-# TODO @{{ cookiecutter.author_email }}: update the platforms <https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/>.
-platforms = ["manylinux2014_x86_64"]
-zip-safe = false
+[tool.pylint.MASTER]
+extension-pkg-allow-list = ["orjson"]
+load-plugins = ["pylint_per_file_ignores"]
 
-[tool.licensecheck]
-# ignore_packages = []
-using = "PEP631"
-zero = true
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = "{{ cookiecutter.max_line_length }}"
 
-[tool.setuptools.dynamic]
-version = { file = ["VERSION"] }
+[tool.pylint.SIMILARITIES]
+ignore-comments = "yes"
+ignore-docstrings = "yes"
+ignore-imports = "yes"
+min-similarity-lines = 10
 
-[tool.setuptools.packages]
-find = { namespaces = false }
+[tool.pylint-per-file-ignores]
+# docs/conf.py: Ignore constant name not UPPER_CASE (C0103) and redefining built-in (W0622) for copyright notice
+# tests/*: Ignore missing docs (C0114, C0116), too long lines (E501), too few/many public methods (R0903, R0904), access to protected member (W0212)
+"docs/conf.py" = "C0103,W0622"
+"tests/*" = "C0114,C0116,E501,R0903,R0904,W0212"
+
+[tool.pytest.ini_options]
+filterwarnings = ["ignore::tqdm.TqdmExperimentalWarning"]
+
+[tool.ruff]
+target-version = "{{ cookiecutter.__py }}"
+
+[tool.ruff.format]
+preview = true
+
+[tool.ruff.lint]
+extend-fixable = ["ALL"]
+extend-select = [
+  "A",
+  "ANN",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "C90",
+  "D",
+  "DOC",
+  "DTZ",
+  "E",
+  "ERA",
+  "EXE",
+  "F",
+  "FAST",
+  "FBT",
+  "FLY",
+  "FURB",
+  "I",
+  "INP",
+  "ISC",
+  "LOG",
+  "N",
+  "NPY",
+  "PERF",
+  "PIE",
+  "PL",
+  "PLE",
+  "PLR",
+  "PLW",
+  "PT",
+  "PTH",
+  "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "T20",
+  "TC",
+  "UP",
+  "W"
+]
+ignore = ["E203", "SIM300", "D105", "D107"]
+preview = true
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+"autosafe/kernels/kernel.py" = ["ANN002", "ANN003", "RUF100", "RUF102"]
+"docs/conf.py" = ["INP001"]
+"tests/*" = [
+  "S101",
+  "ANN201",
+  "ANN205",
+  "D",
+  "E501",
+  "PLR0904",
+  "PLC2701",
+  "PLC0415",
+  "PLR2004",
+  "SLF001",
+  "S307"
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.uv]
+default-groups = "all"
+
+[tool.uv.build-backend]
+module-name = "{{ cookiecutter.package_slug }}"
+module-root = ""

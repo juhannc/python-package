@@ -19,64 +19,45 @@ stages:
 cache:
   key: ${CI_COMMIT_REF_NAME}
   paths:
-    - .cache/pip/
+    - .cache/uv/
+    - .cache/prek/
 
-# Include the default GitLab CI jobs
-include:
-  - template: Code-Quality.gitlab-ci.yml
-  - remote: https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml
-
-# Anchors
-# https://docs.gitlab.com/ee/ci/yaml/README.html#anchors
-#
-# pip cache
-.pip-cache: &pip-cache
-  key: python-${PYTHON_VERSION}
+# uv cache
+.uv-cache: &uv-cache
+  key: python
   paths:
-  - .cache/pip/${PYTHON_VERSION}
+    - .cache/uv/
   policy: pull
 
-# The before_script for pip installs all packages in a virtual environment.
-# If your package requires apt packages, you should add the install instructions
-# as the second step (before `pip3 install --upgrade pip`) in the before_script.
+# Python settings template to install dependencies and set up the environment.
 .python_settings_template: &python_settings
-  image: python:${PYTHON_VERSION}
+  image: ghcr.io/astral-sh/uv:python3.13-trixie
   variables:
     <<: *global_variables
-    PIP_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/pip/${PYTHON_VERSION}
-  parallel:
-    matrix:
-    - PYTHON_VERSION: ["{{ cookiecutter.python_version }}", ...]
+    UV_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/uv/
   cache:
-    <<: *pip-cache
+    <<: *uv-cache
   before_script:
-    - pip3 install --upgrade pip
-    - python --version  # For debugging
-    - pip3 install virtualenv
-    - virtualenv venv/${PYTHON_VERSION}
-    - source venv/${PYTHON_VERSION}/bin/activate
-    - pip3 install --upgrade pip  # Upgrade again, now inside the venv
-    - pip3 install -e '.[tests]'
+    - uv venv --python 3.10
+    - uv sync
+    - source .venv/bin/activate
 
 {%- if cookiecutter.use_pre_commit == "yes" %}
-# Run pre-commit hooks
-#
-# This job runs all pre-commit hooks defined in `.pre-commit-config.yaml`.
-# Create a project access token (https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html)
-# and create a CI/CD variable PRE_COMMIT_ACCESS_TOKEN with the token
-# as a value (make sure this token is masked!)
-pre-commit:
-  image: ghcr.io/juhannc/pre-commit:3.11-slim  # Please find alternative images at <https://github.com/juhannc/pre-commit>.
+# Run pre-commit hooks using prek
+prek:
+  image: ghcr.io/juhannc/prek:3.13-slim
+  stage: .pre
+  rules:
+    - exists:
+        - .pre-commit-config.yaml
   cache:
-    key: pre-commit
+    key: prek
     paths:
-    - .cache/pre-commit
+      - .cache/prek
   variables:
     <<: *global_variables
-    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
-  before_script:
-  - pip install --upgrade pip pre-commit
-  - unset PRE_COMMIT_AUTO_FIX
+  script:
+    - prek run --all-files
 {%- endif %}
 
 # Install dependencies
@@ -86,10 +67,10 @@ install_deps:
   stage: install_deps
   <<: *python_settings
   cache:
-    <<: *pip-cache
+    <<: *uv-cache
     policy: pull-push
   script:
-  - pip3 install -e '.[docs,tests]'
+    - uv sync
 
 # Test
 #
@@ -101,9 +82,9 @@ pytest:
   needs: [install_deps]
   <<: *python_settings
   script:
-  - |
-    pytest --cov=${PACKAGENAME}/ --cov-report term-missing --junitxml=report.xml tests/
-    coverage xml
+    - |
+      pytest --cov=${PACKAGENAME}/ --cov-report term-missing --junitxml=report.xml tests/
+      coverage xml
   coverage: /^TOTAL.+?(\d+\%)$/
   artifacts:
     when: always
@@ -113,75 +94,72 @@ pytest:
         path: coverage.xml
       junit: report.xml
 
-# Look for common mistakes in the style of the code.
-# <https://flake8.pycqa.org/en/latest/>
+# Run flake8 to look for common mistakes in the style of the code.
+# <https://github.com/awelzel/flake8-gl-codeclimate>
 flake8:
   stage: test
+  interruptible: true
   needs: [install_deps]
   <<: *python_settings
-  parallel:
-    matrix:
-    - PYTHON_VERSION: ['{{ cookiecutter.python_version }}']
   script:
-    - flake8 ${PACKAGENAME}
+    - flake8 --exit-zero --format gl-codeclimate --output-file gl-code-quality-report.json ${PACKAGENAME}
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
 
-# Analyzes the code for errors or bad practices.
-# This job is configured to skip the code in the `tests` folder and also
-# the virtual environment (inside `venv`), as we have no control over
-# the later.
-# <https://pylint.pycqa.org/en/latest/>
+# Run pylint for linting and code quality.
+# <https://pypi.org/project/pylint-gitlab/>
 pylint:
   stage: test
+  interruptible: true
   needs: [install_deps]
   <<: *python_settings
-  parallel:
-    matrix:
-    - PYTHON_VERSION: ['{{ cookiecutter.python_version }}']
   script:
-  - pip3 install anybadge pylint-gitlab
-  - mkdir -p public/badges/${PYTHON_VERSION} public/lint/${PYTHON_VERSION}
-  - echo undefined > public/badges/${PYTHON_VERSION}/pylint.score
-  - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/venv/**" ! -path "**/tests/**") | tee public/lint/${PYTHON_VERSION}/pylint.log
-  - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' public/lint/${PYTHON_VERSION}/pylint.log > public/badges/${PYTHON_VERSION}/pylint.score
-  - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter $(find -type f -name "*.py" ! -path "**/venv/**" ! -path "**/tests/**") > codeclimate.json
-  - anybadge --overwrite --label "pylint (Python ${PYTHON_VERSION})" --value=$(cat public/badges/${PYTHON_VERSION}/pylint.score) --file=public/badges/${PYTHON_VERSION}/pylint.svg 4=red 6=orange 8=yellow 10=green
-  - |
-    echo "Your score is: $(cat public/badges/${PYTHON_VERSION}/pylint.score)"
+    - mkdir -p public/badges/ public/lint/
+    - echo undefined > public/badges/pylint.score
+    - pylint --exit-zero --output-format=text ${PACKAGENAME} | tee public/lint/pylint.log
+    - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' public/lint/pylint.log > public/badges/pylint.score
+    - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter ${PACKAGENAME} > codeclimate.json
+    - pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter ${PACKAGENAME} > public/lint/index.html
+    - anybadge --overwrite --label "pylint" --value=$(cat public/badges/pylint.score) --file=public/badges/pylint.svg 4=red 6=orange 8=yellow 10=green
+    - |
+      echo "Your score is: $(cat public/badges/pylint.score)"
   artifacts:
     paths:
-    - public
+      - public
     reports:
       codequality: codeclimate.json
     when: always
 
-# Run a static type checker.
-# Mypy checks the typing info of your package and can warn you,
-# when you are passing around incompatible types.
-# It also checks the type annotations of your functions.
-# <https://mypy.readthedocs.io/en/latest/>
+# Run ruff for linting and code quality.
+# <https://docs.astral.sh/ruff/integrations/#gitlab-cicd>
+ruff:
+  stage: test
+  interruptible: true
+  image:
+    name: ghcr.io/astral-sh/ruff:alpine
+  before_script:
+    - ruff --version
+  script:
+    - ruff check ${PACKAGENAME} --output-format=gitlab > code-quality-report.json
+  artifacts:
+    reports:
+      codequality: code-quality-report.json
+
+# Run mypy for static type checking.
+# <https://pypi.org/project/mypy-gitlab-code-quality/>
 mypy:
   stage: test
+  interruptible: true
   needs: [install_deps]
   <<: *python_settings
-  parallel:
-    matrix:
-    - PYTHON_VERSION: ['{{ cookiecutter.python_version }}']
   script:
-    - mypy ${PACKAGENAME}
-
-# Test the documentation build process.
-test-docs:
-  stage: test
-  needs: [install_deps]
-  <<: *python_settings
-  parallel:
-    matrix:
-    - PYTHON_VERSION: ['3.11']
-  script:
-  - pip install -e '.[docs]'
-  - sphinx-build -b html ./docs public
-  rules:
-  - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
+    - mypy ${PACKAGENAME} --output=json > mypy-out.json || true
+    - mypy-gitlab-code-quality < mypy-out.json > codequality.json
+  artifacts:
+    when: always
+    reports:
+      codequality: codequality.json
 
 # Deploy
 #

@@ -5,16 +5,26 @@ A simple but versatile template for python packages.
 This cookiecutter template provides an easy way to create a new python package.
 It supports a basic CI for both GitLab as well as GitHub and provides a basic setup for testing.
 
-## Usage
+## uv (Recommended)
 
-Install cookiecutter and required dependencies:
+See the [uv documentation](https://docs.astral.sh/uv/getting-started/installation/).
+
+On Linux/macOS run
 
 ```shell
-python3 -m pip install cookiecutter jinja2_time
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+
+and on Windows run
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+## Usage
 
 To create a new python package, run the following command:
 
 ```shell
-cookiecutter gh:juhannc/python-package
+uvx --with jinja2-time cookiecutter gh:juhannc/python-package
 ```
