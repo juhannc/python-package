@@ -8,21 +8,12 @@
   "author_name": "Firstname Lastname",
   "author_email": "name@example.org",
   "version": "0.0.1",
-  "license": [
-    "MIT",
-    "BSD-3-Clause",
-    "GPL-3.0-or-later",
-    "CC-BY-NC-SA-4.0",
-    "CC-BY-NC-ND-4.0",
-    "other"
-  ],
-  "use_pre_commit": true,
+  "license": "MIT",
   "git_host": [
     "GitHub",
     "GitLab",
     "Other"
   ],
-  "max_line_length": 88,
   "__year": "{% now 'utc', '%Y' %}",
   "_extensions": [
     "jinja2_time.TimeExtension"
@@ -35,9 +26,7 @@
     "author_name": "Author full name",
     "author_email": "Author email",
     "version": "Initial version",
-    "license": "Select a license",
-    "use_pre_commit": "Use pre-commit hooks?",
-    "git_host": "Select your git provider",
-    "max_line_length": "Maximum line length"
-  }
+    "license": "Enter the SPDX license classifier",
+    "git_host": "Select your git provider"
+    }
 }

@@ -1,0 +1,214 @@
+# SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+#
+# SPDX-License-Identifier: {{ cookiecutter.license }}
+# Configuration file for `prek`, a git hook framework written in Rust.
+# See https://prek.j178.dev for more information.
+#:schema https://www.schemastore.org/prek.json
+
+default_install_hook_types = [
+  "pre-commit",
+  "commit-msg",
+  "pre-push",
+  "post-checkout",
+  "post-merge",
+  "post-rewrite"
+  ]
+default_stages = ["pre-commit"]
+
+[[repos]]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "v6.0.0"
+hooks = [
+  { id = "check-ast" },
+  { id = "check-builtin-literals" },
+  { id = "check-case-conflict" },
+  { id = "check-docstring-first" },
+  { id = "check-executables-have-shebangs" },
+  { id = "check-json" },
+  { id = "check-merge-conflict" },
+  { id = "check-shebang-scripts-are-executable" },
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "debug-statements" },
+  { id = "end-of-file-fixer" },
+  {
+    id = "mixed-line-ending",
+    args = ["--fix=lf"],
+    exclude = "docs/make.bat"
+  },
+  { id = "trailing-whitespace" }
+]
+
+[[repos]]
+repo = "https://github.com/commitizen-tools/commitizen"
+rev = "v4.13.9"
+hooks = [
+  { id = "commitizen" },
+  {
+    id = "commitizen-branch",
+    stages = ["pre-push"]
+  }
+]
+
+[[repos]]
+repo = "https://github.com/astral-sh/uv-pre-commit"
+rev = "0.10.9"
+hooks = [
+  {
+    id = "uv-sync",
+    name = "Synchronize uv.lock with pyproject.toml"
+  },
+  {
+    id = "uv-lock",
+    name = "Check uv.lock is up to date"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/fsfe/reuse-tool"
+rev = "v6.2.0"
+hooks = [
+  {
+    id = "reuse",
+    name = "Check license headers (REUSE)"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/FHPythonUtils/LicenseCheck"
+rev = "2025.1.0"
+hooks = [
+  {
+    id = "licensecheck",
+    language = "python",
+    name = "Check licenses of Python dependencies"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/citation-file-format/cffconvert"
+rev = "b6045d78aac9e02b039703b030588d54d53262ac"
+hooks = [
+  {
+    id = "validate-cff",
+    name = "Validating CITATION.cff"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/editorconfig-checker/editorconfig-checker.python"
+rev = "3.6.1"
+hooks = [
+  { id = "editorconfig-checker" }
+]
+
+[[repos]]
+repo = "https://github.com/python-jsonschema/check-jsonschema"
+rev = "0.37.0"
+hooks = [
+  { id = "check-github-workflows" },
+  { id = "check-github-actions" },
+  { id = "check-dependabot" },
+  { id = "check-gitlab-ci" },
+  { id = "check-readthedocs" }
+]
+
+[[repos]]
+repo = "https://github.com/zizmorcore/zizmor-pre-commit"
+rev = "v1.23.1"
+hooks = [
+  {
+    id = "zizmor",
+    name = "Lint GitHub workflow files (zizmor)",
+    args = ["--fix=all"]
+  }
+]
+
+[[repos]]
+repo = "https://github.com/PyCQA/flake8"
+rev = "7.3.0"
+hooks = [
+  {
+    id = "flake8",
+    name = "Linting Python code (flake8)",
+    additional_dependencies = [
+      "flake8-docstrings",
+      "flake8-docstrings-complete",
+      "flake8-pyproject"
+    ]
+  }
+]
+
+[[repos]]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.15.5"
+hooks = [
+  {
+    id = "ruff-check",
+    name = "Linting Python code (ruff)",
+    args = ["--fix"]
+  },
+  {
+    id = "ruff-format",
+    name = "Formatting Python code (ruff)"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/codespell-project/codespell"
+rev = "v2.4.2"
+hooks = [
+  {
+    id = "codespell",
+    name = "Fixing common spelling mistakes",
+    args = ["--write-changes"],
+    exclude = "uv.lock|^LICENSES/"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/PyCQA/docformatter"
+rev = "v1.7.7"
+hooks = [
+  {
+    id = "docformatter",
+    name = "Fixing docstring formatting"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/igorshubovych/markdownlint-cli"
+rev = "v0.48.0"
+hooks = [
+  {
+    id = "markdownlint",
+    name = "Fixing markdown linting errors",
+    args = [
+      "--disable",
+      "MD013",
+      "MD033",
+      "--fix"
+    ]
+  }
+]
+
+[[repos]]
+repo = "https://github.com/macisamuele/language-formatters-pre-commit-hooks"
+rev = "v2.16.0"
+hooks = [
+  {
+    id = "pretty-format-yaml",
+    args = [
+      "--autofix",
+      "--indent",
+      "2",
+      "--offset",
+      "2",
+      "--preserve-quotes"
+    ]
+  },
+  {
+    id = "pretty-format-toml",
+    args = ["--autofix"]
+  }
+]

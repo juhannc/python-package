@@ -34,7 +34,7 @@ and on Windows run
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### Create virtualenv
+### Create virtual environment
 
 Simply run
 
@@ -42,10 +42,22 @@ Simply run
 uv venv
 ```
 
-### Install autosafe
+### Install {{ cookiecutter.package_slug }}
 
 ```shell
 uv sync
+```
+
+If you want to install the development dependencies as well, instead run
+
+```shell
+uv sync --dev
+```
+
+For all dependency groups, simple run
+
+```shell
+uv sync --all
 ```
 
 ## Development
@@ -54,12 +66,6 @@ uv sync
 
 ```shell
 uv add <package>
-```
-
-or, in a not-uv environment:
-
-```shell
-uv add --active <package>
 ```
 
 ## Usage

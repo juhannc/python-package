@@ -4,7 +4,7 @@
 
 [build-system]
 build-backend = "uv_build"
-requires = ["uv_build>=0.8.11"]
+requires = ["uv_build>=0.10.0"]
 
 [dependency-groups]
 ci = [
@@ -15,56 +15,50 @@ ci = [
   "flake8-gl-codeclimate",
   "flake8-pyproject",
   "flake8",
-  "mypy-gitlab-code-quality",
-  "mypy",
+  "pip-audit",
   "pylint-gitlab",
   "pylint-per-file-ignores",
-  "pylint"
+  "pylint",
+  "typos",
+  "typos-gitlab-code-quality"
 ]
 dev = [
-  "bpython>=0.25",
-  "prek>=0.2.1",
-  "reuse>=5.1.1",
-  "ruff>=0.13.3",
-  "uv>=0.8.11"
+  "prek>=0.3.5",
+  "reuse>=6.2.0",
+  "ruff>=0.15.5",
+  "ty>=0.0.21",
+  "uv>=0.10.9"
 ]
 docs = [
   "sphinx-autoapi",
   "sphinx-autodoc-typehints",
-  "sphinx-rtd-theme",
-  "sphinx"
+  "sphinx-rtd-theme>3",
+  "sphinx>8",
+  "asteroid<4"
 ]
 tests = ["coverage", "pytest-cov", "pytest>=7.4.0"]
 
 [project]
-classifiers = [
-    "Intended Audience :: Science/Research",
-{%- if cookiecutter.license == "MIT" %}
-    "License :: OSI Approved :: MIT License",
-{%- elif cookiecutter.license == "BSD-3-Clause" %}
-    "License :: OSI Approved :: BSD License",
-{%- elif cookiecutter.license == "GPL-3.0-or-later" %}
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-{%- elif cookiecutter.license == "CC-BY-NC-ND-4.0" or cookiecutter.license == "CC-BY-NC-ND-4.0" %}
-    "License :: Free for non-commercial use",
-{%- endif %}
-    "Natural Language :: English",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: {{ cookiecutter.python_version }}",
-    "Typing :: Typed",
-]# TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
-description = "{{ cookiecutter.short_description }}"
 authors = [
   { name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}" }
 ]
-# TODO @{{ cookiecutter.author_email }}: add dependencies here
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: {{ cookiecutter.python_version }}",
+  "Typing :: Typed"
+] # TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
+# TODO @{{ cookiecutter.author_email }}: add dependencies via uv add <dependency>
 dependencies = []
-license = { file = "LICENSES/{{ cookiecutter.license }}.txt" }
+description = "{{ cookiecutter.short_description }}"
+license = "{{ cookiecutter.license }}"
+license-files = ["LICENSES/*"]
 name = "{{ cookiecutter.package_slug }}"
 readme = "README.md"
 requires-python = ">={{ cookiecutter.python_version }}"
-version = "0.0.0"
+version = "{{ cookiecutter.version }}"
 
 [project.urls]
 # TODO @{{ cookiecutter.author_email }}: add URLs here
@@ -75,34 +69,24 @@ version = "0.0.0"
 
 [tool.flake8]
 check-return-types = true
-# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
-# SIM300: Yoda conditions might be more reliable but not more readable
-# D107: Google docstring style prevents docstrings in __init__ function
-# D401: Imperative mood is not always detected correctly
-# DCO010: Google docstring style prevents docstrings in __init__ function <https://github.com/jdkandersson/flake8-docstrings-complete/issues/15>
-# DCO060: Attributes are often superfluous in __init__ functions
-# D105, DOC201, DOC202: Docstrings in standard magic methods are superfluous
-extend-ignore = "E203, SIM300, D107, D401, DCO010, DCO060, D105, DOC201, DOC203"
+extend-ignore = ["DCO010", "DCO060"]
 max-complexity = "10"
-max-line-length = "{{ cookiecutter.max_line_length }}"
-# tests/*: Ignore docstring style and too long lines for tests
-per-file-ignores = ["tests/*: D,E501"]
+max-line-length = "88"
+per-file-ignores = []
+select = "DCO, DOC"
 style = "google"
 
 [tool.licensecheck]
 ignore_packages = []
 using = "PEP631"
-
-[tool.mypy]
-ignore_missing_imports = true
-python_version = "{{ cookiecutter.python_version }}"
+zero = true
 
 [tool.pylint.MASTER]
-extension-pkg-allow-list = ["orjson"]
+extension-pkg-allow-list = []
 load-plugins = ["pylint_per_file_ignores"]
 
 [tool.pylint.'MESSAGES CONTROL']
-max-line-length = "{{ cookiecutter.max_line_length }}"
+max-line-length = "88"
 
 [tool.pylint.SIMILARITIES]
 ignore-comments = "yes"
@@ -117,6 +101,8 @@ min-similarity-lines = 10
 "tests/*" = "C0114,C0116,E501,R0903,R0904,W0212"
 
 [tool.pytest.ini_options]
+addopts = "--cov=src/{{ cookiecutter.package_slug }}/ --cov-report=term-missing --cov-report=xml:coverage.xml --junitxml=report.xml"
+
 filterwarnings = ["ignore::tqdm.TqdmExperimentalWarning"]
 
 [tool.ruff]
@@ -173,14 +159,16 @@ extend-select = [
   "UP",
   "W"
 ]
-ignore = ["E203", "SIM300", "D105", "D107"]
+# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
+# D105: Docstrings in standard magic methods are superfluous
+# D107: Google docstring style prevents docstrings in __init__ function
+ignore = ["E203", "D105", "D107"]
 preview = true
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
-"autosafe/kernels/kernel.py" = ["ANN002", "ANN003", "RUF100", "RUF102"]
 "docs/conf.py" = ["INP001"]
 "tests/*" = [
   "S101",
@@ -196,12 +184,11 @@ ban-relative-imports = "all"
   "S307"
 ]
 
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 72
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.uv]
-default-groups = "all"
-
-[tool.uv.build-backend]
-module-name = "{{ cookiecutter.package_slug }}"
-module-root = ""
+# default-groups = "all"  # TODO @{{ cookiecutter.author_email }}: activate if preferred

@@ -5,6 +5,10 @@ VERSION_REGEX = r"^(\d+\.)?(\d+\.)?(\*|\d+)$"
 
 version = "{{ cookiecutter.version }}"
 
-if not re.match(VERSION_REGEX, version):
-    print(f"ERROR: {version} is not a valid version!")
-    sys.exit(1)
+def main() -> None:
+    if not re.match(VERSION_REGEX, version):
+        print(f"ERROR: {version} is not a valid version!")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

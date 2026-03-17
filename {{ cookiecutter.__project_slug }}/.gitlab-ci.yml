@@ -2,18 +2,27 @@
 #
 # SPDX-License-Identifier: {{ cookiecutter.license }}
 variables: &global_variables
-  PACKAGENAME: {{ cookiecutter.package_slug }}
+  PACKAGENAME: { { cookiecutter.package_slug } }
   GIT_SUBMODULE_STRATEGY: recursive
-  FF_USE_FASTZIP: 'true'
+  FF_USE_FASTZIP: "true"
   ARTIFACT_COMPRESSION_LEVEL: fast
   CACHE_COMPRESSION_LEVEL: fast
+  UV_LINK_MODE: copy
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
 
 stages:
-- install_deps
-- test
-- deploy
-- prepare
-- release
+  - prek
+  - install_deps
+  - lint
+  - test
+  - deploy
+  - prepare
+  - release
 
 # CACHE
 cache:
@@ -24,41 +33,39 @@ cache:
 
 # uv cache
 .uv-cache: &uv-cache
-  key: python
+  key: uv
   paths:
     - .cache/uv/
   policy: pull
 
 # Python settings template to install dependencies and set up the environment.
 .python_settings_template: &python_settings
-  image: ghcr.io/astral-sh/uv:python3.13-trixie
+  image: ghcr.io/astral-sh/uv:python3.14-trixie
   variables:
     <<: *global_variables
     UV_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/uv/
   cache:
     <<: *uv-cache
   before_script:
-    - uv venv --python 3.10
     - uv sync
-    - source .venv/bin/activate
 
-{%- if cookiecutter.use_pre_commit == "yes" %}
 # Run pre-commit hooks using prek
 prek:
   image: ghcr.io/juhannc/prek:3.13-slim
-  stage: .pre
+  stage: prek
   rules:
     - exists:
         - .pre-commit-config.yaml
   cache:
     key: prek
     paths:
-      - .cache/prek
+      - .cache/prek/
   variables:
     <<: *global_variables
+  before_script:
+    - apt-get update && apt-get install -y build-essential libatomic1
   script:
     - prek run --all-files
-{%- endif %}
 
 # Install dependencies
 #
@@ -71,57 +78,53 @@ install_deps:
     policy: pull-push
   script:
     - uv sync
+  after_script:
+    - uv cache prune --ci
 
-# Test
+# Lint
 #
-# Run all tests defined in the `tests` folder and evaluate the coverage.
-# This way we can make sure the package passes all tests.
-# <https://docs.pytest.org/en/7.1.x/>
-pytest:
-  stage: test
-  needs: [install_deps]
-  <<: *python_settings
+# Run pip-audit to check for known vulnerabilities in dependencies.
+# <https://github.com/pypa/pip-audit>
+pip_audit:
+  stage: lint
+  interruptible: true
+  image: ghcr.io/astral-sh/uv:python3.14-trixie
   script:
-    - |
-      pytest --cov=${PACKAGENAME}/ --cov-report term-missing --junitxml=report.xml tests/
-      coverage xml
-  coverage: /^TOTAL.+?(\d+\%)$/
+    - uv tool run pip-audit --output json > pip-audit-report.json || true
   artifacts:
     when: always
     reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-      junit: report.xml
+      dependency_scanning: pip-audit-report.json
 
 # Run flake8 to look for common mistakes in the style of the code.
 # <https://github.com/awelzel/flake8-gl-codeclimate>
 flake8:
-  stage: test
+  stage: lint
   interruptible: true
   needs: [install_deps]
   <<: *python_settings
   script:
-    - flake8 --exit-zero --format gl-codeclimate --output-file gl-code-quality-report.json ${PACKAGENAME}
+    - uv run flake8 --exit-zero --format gl-codeclimate --output-file gl-code-quality-report.json src/${PACKAGENAME}
   artifacts:
+    when: always
     reports:
       codequality: gl-code-quality-report.json
 
 # Run pylint for linting and code quality.
 # <https://pypi.org/project/pylint-gitlab/>
 pylint:
-  stage: test
+  stage: lint
   interruptible: true
   needs: [install_deps]
   <<: *python_settings
   script:
     - mkdir -p public/badges/ public/lint/
     - echo undefined > public/badges/pylint.score
-    - pylint --exit-zero --output-format=text ${PACKAGENAME} | tee public/lint/pylint.log
+    - uv run pylint --exit-zero --output-format=text src/${PACKAGENAME} | tee public/lint/pylint.log
     - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' public/lint/pylint.log > public/badges/pylint.score
-    - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter ${PACKAGENAME} > codeclimate.json
-    - pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter ${PACKAGENAME} > public/lint/index.html
-    - anybadge --overwrite --label "pylint" --value=$(cat public/badges/pylint.score) --file=public/badges/pylint.svg 4=red 6=orange 8=yellow 10=green
+    - uv run pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter src/${PACKAGENAME} > codeclimate.json
+    - uv run pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter src/${PACKAGENAME} > public/lint/index.html
+    - uv run anybadge --overwrite --label "pylint" --value=$(cat public/badges/pylint.score) --file=public/badges/pylint.svg 4=red 6=orange 8=yellow 10=green
     - |
       echo "Your score is: $(cat public/badges/pylint.score)"
   artifacts:
@@ -134,130 +137,90 @@ pylint:
 # Run ruff for linting and code quality.
 # <https://docs.astral.sh/ruff/integrations/#gitlab-cicd>
 ruff:
-  stage: test
+  stage: lint
   interruptible: true
-  image:
-    name: ghcr.io/astral-sh/ruff:alpine
+  image: ghcr.io/astral-sh/ruff:alpine
   before_script:
     - ruff --version
   script:
-    - ruff check ${PACKAGENAME} --output-format=gitlab > code-quality-report.json
+    - ruff check src/${PACKAGENAME} --output-format=gitlab > code-quality-report.json
   artifacts:
+    when: always
     reports:
       codequality: code-quality-report.json
 
-# Run mypy for static type checking.
-# <https://pypi.org/project/mypy-gitlab-code-quality/>
-mypy:
-  stage: test
+# Run ty for static type checking.
+# <https://docs.astral.sh/ty/reference/cli/#ty-check>
+ty:
+  stage: lint
   interruptible: true
   needs: [install_deps]
   <<: *python_settings
   script:
-    - mypy ${PACKAGENAME} --output=json > mypy-out.json || true
-    - mypy-gitlab-code-quality < mypy-out.json > codequality.json
+    - uv run ty --version
+    - uv run ty check src/${PACKAGENAME} --output-format=gitlab > code-quality-report.json
+  artifacts:
+    when: always
+    reports:
+      codequality: code-quality-report.json
+
+# Run typos for typo checking.
+# <https://github.com/crate-ci/typos>
+# <https://github.com/tahv/typos-gitlab-code-quality>
+typos:
+  stage: lint
+  interruptible: true
+  image: ghcr.io/astral-sh/uv:python3.14-trixie
+  script:
+    - uv tool run typos --format json > typos-report.json || true
+    - uv tool run typos-gitlab-code-quality < typos-report.json > codequality.json
   artifacts:
     when: always
     reports:
       codequality: codequality.json
 
+# Test
+#
+# Run all tests defined in the `tests` folder and evaluate the coverage.
+# This way we can make sure the package passes all tests.
+# <https://docs.pytest.org/en/7.1.x/>
+pytest:
+  stage: test
+  needs: [install_deps]
+  <<: *python_settings
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["{{ cookiecutter.python_version }}", ...]
+  rules:
+    - if: '$PYTHON_VERSION == "3.13t" || $PYTHON_VERSION == "3.14t"'
+      allow_failure: true
+    - when: always
+  image: ghcr.io/astral-sh/uv:debian
+  before_script:
+    - uv python install ${PYTHON_VERSION}
+    - uv python pin ${PYTHON_VERSION}
+  script:
+    - uv run pytest
+  coverage: /^TOTAL.+?(\d+\%)$/
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: report.xml
+
 # Deploy
 #
-# This job builds the package into a whl file and deploys it to the projects registry.
-# It is only run on the default branch and only if the VERSION file changes.
-# This way, no two packages with the same version will be uploaded to the registry.
-# <https://docs.gitlab.com/ee/user/packages/pypi_repository/>
-publish:
-  stage: deploy
-  image: python:latest
-  needs: [pytest]
-  rules:
-  - if: $CI_COMMIT_TAG
-    when: never                                    # Do not run this job when a tag is created manually
-  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH    # Run this job when commits are pushed or merged to the default branch
-    changes:                                       # AND the VERSION changes
-    - VERSION
-  artifacts:
-    paths:
-    - dist/
-    reports:
-      dotenv: publish.env # Use artifacts:reports:dotenv to expose the variables to other jobs
-  script:
-  - echo "PUBLISH_JOB_ID=${CI_JOB_ID}" >> publish.env
-  - pip3 install build twine
-  - python3 -m build
-  - >
-    TWINE_PASSWORD=${CI_JOB_TOKEN}
-    TWINE_USERNAME=gitlab-ci-token
-    python3 -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
-
 # Build the documentation.
 pages:
   stage: deploy
   needs: [install_deps]
   <<: *python_settings
-  parallel:
-    matrix:
-    - PYTHON_VERSION: ['3.11']
   script:
-  - pip install -e '.[docs]'
-  - sphinx-build -b html ./docs public
+    - uv run sphinx-build -b html ./docs public
   artifacts:
     paths:
-    - public
+      - public
   rules:
-  - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
-
-# The next two jobs release the code on GitLab.
-# Afterwards, it will be available as a tag and a release on the GitLab repository.
-# These jobs will also be run on the default branch and only if the version changes.
-# <https://docs.gitlab.com/ee/user/project/releases/>
-# <https://docs.gitlab.com/ee/user/project/releases/#create-a-release-by-using-a-cicd-job>
-
-# Prepare
-prepare_job:
-  stage: prepare # This stage must run before the release stage
-  needs: [publish]
-  rules:
-  - if: $CI_COMMIT_TAG
-    when: never                                    # Do not run this job when a tag is created manually
-  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH    # Run this job when commits are pushed or merged to the default branch
-    changes:                                       # AND the VERSION changes
-    - VERSION
-  script:
-  - echo "EXTRA_DESCRIPTION=New release for ${PACKAGENAME}." >> variables.env
-  - echo "VERSION=$(cat VERSION)" >> variables.env
-  - echo "TAG=v$(cat VERSION)" >> variables.env
-  artifacts:
-    reports:
-      dotenv: variables.env # Use artifacts:reports:dotenv to expose the variables to other jobs
-
-# Release
-release_job:
-  stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli:latest
-  needs:
-  - job: publish
-    artifacts: true
-  - job: prepare_job
-    artifacts: true
-  rules:
-  - if: $CI_COMMIT_TAG
-    when: never                                    # Do not run this job when a tag is created manually
-  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH    # Run this job when commits are pushed or merged to the default branch
-    changes:                                       # AND the VERSION changes
-    - VERSION
-  script:
-  - echo "running release_job for $TAG"
-  release:
-    name: Release ${TAG}
-    description: ${EXTRA_DESCRIPTION}    # $EXTRA_DESCRIPTION and the $TAG
-    tag_name: ${TAG}                     # variables must be defined elsewhere
-    ref: ${CI_COMMIT_SHA}                # in the pipeline. For example, in the prepare_job
-    assets:
-      links:
-        # Here you can add links to the release if the package is available in more versions than `none-any`.
-        # See <https://peps.python.org/pep-0427/#file-format> for further information.
-      - name: ${PACKAGENAME}-${VERSION}-py3-none-any.whl
-        url: ${CI_PROJECT_URL}/-/jobs/${PUBLISH_JOB_ID}/artifacts/file/dist/${PACKAGENAME}-${VERSION}-py3-none-any.whl
-        link_type: package
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH

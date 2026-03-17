@@ -9,17 +9,18 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 -- Project information -----------------------------------------------------
 https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 """
-import os
+import pathlib
 import sys
 
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, str(pathlib.Path("..").resolve()))
 
 project = "{{ cookiecutter.package_slug }}"
 copyright = "{{ cookiecutter.__year }}, {{ cookiecutter.author_name }}"  # noqa: A001
 author = "{{ cookiecutter.author_name }}"
 release = "{{ cookiecutter.version }}"
 
-# -- General configuration ---------------------------------------------------
+
+# -- General configuration ---------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
@@ -49,7 +50,7 @@ napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
 
-autoapi_dirs = ["../{{ cookiecutter.package_slug }}"]
+autoapi_dirs = ["../src/{{ cookiecutter.package_slug }}"]
 
 intersphinx_mapping = {
     "python": ("http://docs.python.org/3", None),
@@ -59,7 +60,7 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build"]
 
 
-# -- Options for HTML output -------------------------------------------------
+# -- Options for HTML output -------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"

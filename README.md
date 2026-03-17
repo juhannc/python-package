@@ -26,5 +26,5 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 To create a new python package, run the following command:
 
 ```shell
-uvx --with jinja2-time cookiecutter gh:juhannc/python-package
+uvx --with jinja2-time,reuse cookiecutter gh:juhannc/python-package
 ```
