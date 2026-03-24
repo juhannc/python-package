@@ -56,6 +56,7 @@ prek:
   rules:
     - exists:
         - .pre-commit-config.yaml
+        - prek.toml
   cache:
     key: prek
     paths:
