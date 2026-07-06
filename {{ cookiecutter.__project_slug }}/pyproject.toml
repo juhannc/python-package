@@ -4,7 +4,7 @@
 
 [build-system]
 build-backend = "uv_build"
-requires = ["uv_build>=0.10.0,<0.11.0"]
+requires = ["uv_build>=0.11.18,<1.0.0"]
 
 [dependency-groups]
 ci = [
@@ -27,14 +27,14 @@ dev = [
   "reuse>=6.2.0",
   "ruff>=0.15.5",
   "ty>=0.0.21",
-  "uv>=0.10.9"
+  "uv>=0.11.18"
 ]
 docs = [
   "sphinx-autoapi",
   "sphinx-autodoc-typehints",
   "sphinx-rtd-theme>3",
   "sphinx>8",
-  "asteroid<4"
+  "astroid<4"
 ]
 tests = ["coverage", "pytest-cov", "pytest>=7.4.0"]
 
@@ -50,7 +50,6 @@ classifiers = [
   "Programming Language :: Python :: {{ cookiecutter.python_version }}",
   "Typing :: Typed"
 ] # TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
-# TODO @{{ cookiecutter.author_email }}: add dependencies via uv add <dependency>
 dependencies = []
 description = "{{ cookiecutter.short_description }}"
 license = "{{ cookiecutter.license }}"
@@ -60,12 +59,18 @@ readme = "README.md"
 requires-python = ">={{ cookiecutter.python_version }}"
 version = "{{ cookiecutter.version }}"
 
+[project.scripts]
+autosafe = "{{ cookiecutter.package_slug }}.__main__:main"
+
 [project.urls]
 # TODO @{{ cookiecutter.author_email }}: add URLs here
 # Documentation =
 # Homepage =
 # Source =
 # Tracker =
+
+[tool.codespell]
+ignore-words-list = "astroid"
 
 [tool.flake8]
 check-return-types = true
@@ -102,17 +107,23 @@ min-similarity-lines = 10
 
 [tool.pytest.ini_options]
 addopts = "--cov=src/{{ cookiecutter.package_slug }}/ --cov-report=term-missing --cov-report=xml:coverage.xml --junitxml=report.xml"
-
-filterwarnings = ["ignore::tqdm.TqdmExperimentalWarning"]
+filterwarnings = []
+testpaths = ["tests"]
 
 [tool.ruff]
+fix = true
 target-version = "{{ cookiecutter.__py }}"
+unsafe-fixes = true
 
 [tool.ruff.format]
 preview = true
 
 [tool.ruff.lint]
-extend-fixable = ["ALL"]
+fixable = ["ALL"]
+# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
+# D105: Docstrings in standard magic methods are superfluous
+ignore = ["E203", "D105"]
+preview = true
 extend-select = [
   "A",
   "ANN",
@@ -159,11 +170,6 @@ extend-select = [
   "UP",
   "W"
 ]
-# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
-# D105: Docstrings in standard magic methods are superfluous
-# D107: Google docstring style prevents docstrings in __init__ function
-ignore = ["E203", "D105", "D107"]
-preview = true
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -181,7 +187,8 @@ ban-relative-imports = "all"
   "PLC0415",
   "PLR2004",
   "SLF001",
-  "S307"
+  "S307",
+  "W505"
 ]
 
 [tool.ruff.lint.pycodestyle]
@@ -191,4 +198,5 @@ max-doc-length = 72
 convention = "google"
 
 [tool.uv]
-# default-groups = "all"  # TODO @{{ cookiecutter.author_email }}: activate if preferred
+default-groups = "all"
+exclude-newer = "7 days"

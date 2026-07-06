@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: {{ cookiecutter.license }}
 # Configuration file for `prek`, a git hook framework written in Rust.
 # See https://prek.j178.dev for more information.
-#:schema https://www.schemastore.org/prek.json
+# :schema https://www.schemastore.org/prek.json
 
 default_install_hook_types = [
   "pre-commit",
@@ -12,203 +12,167 @@ default_install_hook_types = [
   "post-checkout",
   "post-merge",
   "post-rewrite"
-  ]
+]
 default_stages = ["pre-commit"]
 
+[auto_update]
+cooldown_days = 7
+
 [[repos]]
+hooks = [
+  { id = "check-ast", priority = 9999 },
+  { id = "check-builtin-literals", priority = 9999 },
+  { id = "check-case-conflict", priority = 9999 },
+  { id = "check-executables-have-shebangs", priority = 9999 },
+  { id = "check-json", priority = 9999 },
+  { id = "check-merge-conflict", priority = 9999 },
+  { id = "check-shebang-scripts-are-executable", priority = 9999 },
+  { id = "check-toml", priority = 9999 },
+  { id = "check-yaml", priority = 9999 },
+  { id = "debug-statements", priority = 9999 },
+  { id = "pretty-format-json", priority = 10, args = [
+    "--autofix",
+    "--indent",
+    "2"
+  ] },
+  { id = "trailing-whitespace", priority = 20 },
+  { id = "fix-byte-order-marker", priority = 30 },
+  { id = "end-of-file-fixer", priority = 40 },
+  { id = "mixed-line-ending", args = [
+    "--fix=lf"
+  ], exclude = "docs/make.bat", priority = 50 }
+]
 repo = "https://github.com/pre-commit/pre-commit-hooks"
 rev = "v6.0.0"
-hooks = [
-  { id = "check-ast" },
-  { id = "check-builtin-literals" },
-  { id = "check-case-conflict" },
-  { id = "check-docstring-first" },
-  { id = "check-executables-have-shebangs" },
-  { id = "check-json" },
-  { id = "check-merge-conflict" },
-  { id = "check-shebang-scripts-are-executable" },
-  { id = "check-toml" },
-  { id = "check-yaml" },
-  { id = "debug-statements" },
-  { id = "end-of-file-fixer" },
-  {
-    id = "mixed-line-ending",
-    args = ["--fix=lf"],
-    exclude = "docs/make.bat"
-  },
-  { id = "trailing-whitespace" }
-]
 
 [[repos]]
+hooks = [
+  { id = "commitizen", priority = 9999 },
+  { id = "commitizen-branch", stages = [
+    "pre-push"
+  ], priority = 9999 }
+]
 repo = "https://github.com/commitizen-tools/commitizen"
-rev = "v4.13.9"
-hooks = [
-  { id = "commitizen" },
-  {
-    id = "commitizen-branch",
-    stages = ["pre-push"]
-  }
-]
+rev = "v4.16.4"
 
 [[repos]]
+hooks = [
+  { id = "uv-sync", name = "Synchronize uv.lock with pyproject.toml", priority = 60 },
+  { id = "uv-audit", args = [
+    "--frozen",
+    "--preview-features",
+    "audit"
+  ], name = "Audit Python dependencies", priority = 9999 }
+]
 repo = "https://github.com/astral-sh/uv-pre-commit"
-rev = "0.10.9"
-hooks = [
-  {
-    id = "uv-sync",
-    name = "Synchronize uv.lock with pyproject.toml"
-  },
-  {
-    id = "uv-lock",
-    name = "Check uv.lock is up to date"
-  }
-]
+rev = "0.11.25"
 
 [[repos]]
-repo = "https://github.com/fsfe/reuse-tool"
+hooks = [
+  { id = "reuse", name = "Check license headers (REUSE)", priority = 9999 }
+]
+repo = "https://codeberg.org/fsfe/reuse-tool"
 rev = "v6.2.0"
-hooks = [
-  {
-    id = "reuse",
-    name = "Check license headers (REUSE)"
-  }
-]
 
 [[repos]]
+hooks = [
+  { id = "licensecheck", language = "python", name = "Check licenses of Python dependencies", priority = 9999 }
+]
 repo = "https://github.com/FHPythonUtils/LicenseCheck"
-rev = "2025.1.0"
-hooks = [
-  {
-    id = "licensecheck",
-    language = "python",
-    name = "Check licenses of Python dependencies"
-  }
-]
+rev = "2026.0.8"
 
 [[repos]]
+hooks = [
+  { id = "validate-cff", name = "Validating CITATION.cff", priority = 9999 }
+]
 repo = "https://github.com/citation-file-format/cffconvert"
 rev = "b6045d78aac9e02b039703b030588d54d53262ac"
-hooks = [
-  {
-    id = "validate-cff",
-    name = "Validating CITATION.cff"
-  }
-]
 
 [[repos]]
+hooks = [{ id = "editorconfig-checker", priority = 9999 }]
 repo = "https://github.com/editorconfig-checker/editorconfig-checker.python"
 rev = "3.6.1"
-hooks = [
-  { id = "editorconfig-checker" }
-]
 
 [[repos]]
+hooks = [
+  { id = "check-github-workflows", priority = 9999 },
+  { id = "check-github-actions", priority = 9999 },
+  { id = "check-dependabot", priority = 9999 },
+  { id = "check-gitlab-ci", priority = 9999 },
+  { id = "check-readthedocs", priority = 9999 }
+]
 repo = "https://github.com/python-jsonschema/check-jsonschema"
-rev = "0.37.0"
-hooks = [
-  { id = "check-github-workflows" },
-  { id = "check-github-actions" },
-  { id = "check-dependabot" },
-  { id = "check-gitlab-ci" },
-  { id = "check-readthedocs" }
-]
+rev = "0.37.3"
 
 [[repos]]
+hooks = [
+  { id = "zizmor", name = "Lint GitHub workflow files (zizmor)", args = [
+    "--fix=all"
+  ], priority = 70 }
+]
 repo = "https://github.com/zizmorcore/zizmor-pre-commit"
-rev = "v1.23.1"
-hooks = [
-  {
-    id = "zizmor",
-    name = "Lint GitHub workflow files (zizmor)",
-    args = ["--fix=all"]
-  }
-]
+rev = "v1.26.1"
 
 [[repos]]
+hooks = [
+  { id = "flake8", name = "Linting Python code (flake8)", additional_dependencies = [
+    "flake8-docstrings",
+    "flake8-docstrings-complete",
+    "flake8-pyproject"
+  ], priority = 9999 }
+]
 repo = "https://github.com/PyCQA/flake8"
 rev = "7.3.0"
-hooks = [
-  {
-    id = "flake8",
-    name = "Linting Python code (flake8)",
-    additional_dependencies = [
-      "flake8-docstrings",
-      "flake8-docstrings-complete",
-      "flake8-pyproject"
-    ]
-  }
-]
 
 [[repos]]
+hooks = [
+  { id = "ruff-check", name = "Linting Python code (ruff)", priority = 80 },
+  { id = "ruff-format", name = "Formatting Python code (ruff)", priority = 90 }
+]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "v0.15.5"
-hooks = [
-  {
-    id = "ruff-check",
-    name = "Linting Python code (ruff)",
-    args = ["--fix"]
-  },
-  {
-    id = "ruff-format",
-    name = "Formatting Python code (ruff)"
-  }
-]
+rev = "v0.15.20"
 
 [[repos]]
+hooks = [
+  { id = "ty", name = "Type-checking Python code (ty)", priority = 9999 }
+]
+repo = "https://github.com/astral-sh/ty-pre-commit"
+rev = "v0.0.55"
+
+[[repos]]
+hooks = [
+  { id = "codespell", name = "Fixing common spelling mistakes", args = [
+    "--write-changes"
+  ], exclude = "uv.lock|^LICENSES/", priority = 100 }
+]
 repo = "https://github.com/codespell-project/codespell"
 rev = "v2.4.2"
-hooks = [
-  {
-    id = "codespell",
-    name = "Fixing common spelling mistakes",
-    args = ["--write-changes"],
-    exclude = "uv.lock|^LICENSES/"
-  }
-]
 
 [[repos]]
-repo = "https://github.com/PyCQA/docformatter"
-rev = "v1.7.7"
 hooks = [
-  {
-    id = "docformatter",
-    name = "Fixing docstring formatting"
-  }
+  { id = "markdownlint", name = "Fixing markdown linting errors", args = [
+    "--disable",
+    "MD013",
+    "MD033",
+    "--fix"
+  ], priority = 110 }
 ]
-
-[[repos]]
 repo = "https://github.com/igorshubovych/markdownlint-cli"
-rev = "v0.48.0"
-hooks = [
-  {
-    id = "markdownlint",
-    name = "Fixing markdown linting errors",
-    args = [
-      "--disable",
-      "MD013",
-      "MD033",
-      "--fix"
-    ]
-  }
-]
+rev = "v0.49.0"
 
 [[repos]]
+hooks = [
+  { id = "pretty-format-toml", args = [
+    "--autofix"
+  ], exclude = "uv.lock", priority = 120 },
+  { id = "pretty-format-yaml", args = [
+    "--autofix",
+    "--indent",
+    "2",
+    "--offset",
+    "2",
+    "--preserve-quotes"
+  ], priority = 130 }
+]
 repo = "https://github.com/macisamuele/language-formatters-pre-commit-hooks"
 rev = "v2.16.0"
-hooks = [
-  {
-    id = "pretty-format-yaml",
-    args = [
-      "--autofix",
-      "--indent",
-      "2",
-      "--offset",
-      "2",
-      "--preserve-quotes"
-    ]
-  },
-  {
-    id = "pretty-format-toml",
-    args = ["--autofix"]
-  }
-]
