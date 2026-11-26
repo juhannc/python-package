@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+#
+# SPDX-License-Identifier: {{ cookiecutter.license }}
+
+version = 1
+
+[[annotations]]
+SPDX-FileCopyrightText = "{{ cookiecutter.__year }} {{ cookiecutter.author_name }}"
+SPDX-License-Identifier = "{{ cookiecutter.license }}"
+path = ["uv.lock"]

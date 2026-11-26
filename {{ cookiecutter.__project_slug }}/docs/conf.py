@@ -3,19 +3,21 @@
 # SPDX-License-Identifier: {{ cookiecutter.license }}
 """Configuration file for the Sphinx documentation builder.
 
-For the full list of built-in configuration values, see the documentation:
+For the full list of built-in configuration values, see the
+documentation:
 https://www.sphinx-doc.org/en/master/usage/configuration.html
 
--- Project information -----------------------------------------------------
+-- Project information -------------------------------------------------
 https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 """
+
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path("..").resolve()))
 
 project = "{{ cookiecutter.package_slug }}"
-copyright = "{{ cookiecutter.__year }}, {{ cookiecutter.author_name }}"  # noqa: A001
+copyright = "{{ cookiecutter.__year }}, {{ cookiecutter.author_name }}"  # ruff:ignore[builtin-variable-shadowing]
 author = "{{ cookiecutter.author_name }}"
 release = "{{ cookiecutter.version }}"
 

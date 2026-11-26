@@ -45,7 +45,7 @@ indent_style = tab
 end_of_line = crlf
 
 # License files
-[/LICENSES/**]
+[**/LICENSES/**]
 insert_final_newline = unset
 trim_trailing_whitespace = unset
 indent_style = unset

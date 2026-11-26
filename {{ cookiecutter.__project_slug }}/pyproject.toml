@@ -2,46 +2,15 @@
 #
 # SPDX-License-Identifier: {{ cookiecutter.license }}
 
-[build-system]
-build-backend = "uv_build"
-requires = ["uv_build>=0.11.18,<1.0.0"]
-
-[dependency-groups]
-ci = [
-  "anybadge",
-  "codeclimate-test-reporter",
-  "flake8-docstrings-complete",
-  "flake8-docstrings",
-  "flake8-gl-codeclimate",
-  "flake8-pyproject",
-  "flake8",
-  "pip-audit",
-  "pylint-gitlab",
-  "pylint-per-file-ignores",
-  "pylint",
-  "typos",
-  "typos-gitlab-code-quality"
-]
-dev = [
-  "prek>=0.3.5",
-  "reuse>=6.2.0",
-  "ruff>=0.15.5",
-  "ty>=0.0.21",
-  "uv>=0.11.18"
-]
-docs = [
-  "sphinx-autoapi",
-  "sphinx-autodoc-typehints",
-  "sphinx-rtd-theme>3",
-  "sphinx>8",
-  "astroid<4"
-]
-tests = ["coverage", "pytest-cov", "pytest>=7.4.0"]
-
 [project]
-authors = [
-  { name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}" }
-]
+name = "{{ cookiecutter.package_slug }}"
+version = "{{ cookiecutter.version }}"
+description = "{{ cookiecutter.short_description }}"
+readme = "README.md"
+requires-python = ">={{ cookiecutter.python_version }}"
+license = "{{ cookiecutter.license }}"
+license-files = ["LICENSES/*"]
+authors = [{ name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}" }]
 classifiers = [
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
@@ -51,16 +20,6 @@ classifiers = [
   "Typing :: Typed"
 ] # TODO @{{ cookiecutter.author_email }}: add/update project classifiers here from https://pypi.org/classifiers/
 dependencies = []
-description = "{{ cookiecutter.short_description }}"
-license = "{{ cookiecutter.license }}"
-license-files = ["LICENSES/*"]
-name = "{{ cookiecutter.package_slug }}"
-readme = "README.md"
-requires-python = ">={{ cookiecutter.python_version }}"
-version = "{{ cookiecutter.version }}"
-
-[project.scripts]
-autosafe = "{{ cookiecutter.package_slug }}.__main__:main"
 
 [project.urls]
 # TODO @{{ cookiecutter.author_email }}: add URLs here
@@ -69,17 +28,65 @@ autosafe = "{{ cookiecutter.package_slug }}.__main__:main"
 # Source =
 # Tracker =
 
+[project.scripts]
+{{ cookiecutter.package_slug }} = "{{ cookiecutter.package_slug }}.__main__:main"
+
+[dependency-groups]
+dev = [
+  "commitizen>=4.19.4",
+  "prek>=0.5.11",
+  "reuse>=6.3.0",
+  "ruff>=0.17.5",
+  "ty>=0.0.107",
+  "uv>=0.13.9"
+]
+docs = [
+  "sphinx",
+  "sphinx-autoapi",
+  "sphinx-autodoc-typehints",
+  "sphinx-rtd-theme>=3.0.0"
+]
+lint = ["pylint", "pylint-per-file-ignores"]
+tests = ["coverage", "pytest>=9.0.0", "pytest-cov"]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<1.0.0"]
+build-backend = "uv_build"
+
 [tool.codespell]
-ignore-words-list = "astroid"
+builtin = "clear,rare,en-GB_to_en-US"
+ignore-words-list = "nd"
+
+[tool.commitizen]
+bump_message = "bump: version $current_version -> $new_version"
+gpg_sign = true
+name = "cz_conventional_commits"
+pre_bump_hooks = [
+  "python -c \"import re; from datetime import date; c=open('CITATION.cff').read(); open('CITATION.cff','w').write(re.sub(r'^(date-released: )\\\\d{4}-\\\\d{2}-\\\\d{2}', r'\\\\g<1>' + date.today().isoformat(), c, flags=re.M))\"",
+  "uv lock"
+]
+tag_format = "$version"
+version = "2.2.0"
+version_files = [
+  "CITATION.cff:^version",
+  "docs/conf.py:release",
+  "pyproject.toml:version"
+]
+version_provider = "commitizen"
+version_scheme = "pep440"
 
 [tool.flake8]
 check-return-types = true
 extend-ignore = ["DCO010", "DCO060"]
-max-complexity = "10"
-max-line-length = "88"
+# TypedDict keys such as `__ndarray__` are real fields and are documented.
+ignore-special-dunder-class-attributes = false
+# Document `*args`/`**kwargs` without stars, as flake8-docstrings-complete expects.
+omit-stars-when-documenting-varargs = true
 per-file-ignores = []
 select = "DCO, DOC"
 style = "google"
+# Properties listed under `Attributes:` count as class attributes.
+treat-property-methods-as-class-attributes = true
 
 [tool.licensecheck]
 ignore_packages = []
@@ -106,24 +113,18 @@ min-similarity-lines = 10
 "tests/*" = "C0114,C0116,E501,R0903,R0904,W0212"
 
 [tool.pytest.ini_options]
-addopts = "--cov=src/{{ cookiecutter.package_slug }}/ --cov-report=term-missing --cov-report=xml:coverage.xml --junitxml=report.xml"
+addopts = "--cov=src/{{ cookiecutter.package_slug }}/ --cov-branch --cov-report=term-missing --cov-report=xml:coverage.xml --junitxml=report.xml"
 filterwarnings = []
 testpaths = ["tests"]
 
 [tool.ruff]
 fix = true
-target-version = "{{ cookiecutter.__py }}"
 unsafe-fixes = true
 
 [tool.ruff.format]
 preview = true
 
 [tool.ruff.lint]
-fixable = ["ALL"]
-# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
-# D105: Docstrings in standard magic methods are superfluous
-ignore = ["E203", "D105"]
-preview = true
 extend-select = [
   "A",
   "ANN",
@@ -145,57 +146,74 @@ extend-select = [
   "FLY",
   "FURB",
   "I",
+  "ICN",
   "INP",
   "ISC",
   "LOG",
   "N",
   "NPY",
   "PERF",
+  "PGH",
   "PIE",
   "PL",
-  "PLE",
-  "PLR",
-  "PLW",
+  "TID",
   "PT",
   "PTH",
+  "PYI",
   "Q",
   "RET",
   "RSE",
   "RUF",
   "S",
   "SIM",
+  "SLOT",
   "SLF",
   "T20",
   "TC",
+  "TRY",
   "UP",
   "W"
 ]
+fixable = ["ALL"]
+# E203: incorrectly triggers on array slices: <https://github.com/PyCQA/pycodestyle/issues/373>
+# D105: Docstrings in standard magic methods are superfluous
+# D107: Google docstring style prevents docstrings in __init__ function
+ignore = [
+  "whitespace-before-punctuation",
+  "undocumented-magic-method",
+  "undocumented-public-init"
+]
+preview = true
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
-"docs/conf.py" = ["INP001"]
+"docs/conf.py" = ["implicit-namespace-package"]
 "tests/*" = [
-  "S101",
-  "ANN201",
-  "ANN205",
+  "assert",
+  "missing-return-type-public-function",
+  "missing-return-type-static-method",
   "D",
-  "E501",
-  "PLR0904",
-  "PLC2701",
-  "PLC0415",
-  "PLR2004",
-  "SLF001",
-  "S307",
-  "W505"
+  "line-too-long",
+  "too-many-public-methods",
+  "import-private-name",
+  "import-outside-top-level",
+  "magic-value-comparison",
+  "private-member-access",
+  "suspicious-eval-usage",
+  "doc-line-too-long"
 ]
+
 
 [tool.ruff.lint.pycodestyle]
 max-doc-length = 72
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.tombi.format.rules]
+line-width = 80
 
 [tool.uv]
 default-groups = "all"

@@ -211,6 +211,45 @@ pytest:
         path: coverage.xml
       junit: report.xml
 
+# Mutation testing
+#
+# Run mutmut on the mathematical core (see `[tool.mutmut]` in pyproject.toml).
+# Only for scheduled pipelines, or started by hand from the web UI. It reports
+# and never blocks. The `mutants/` cache lets an interrupted run resume.
+# TODO: once the first workstation run shows that incremental (cached) runs are
+# fast, drop `allow_failure`, also run this job in merge-request and push
+# pipelines, and require it like the coverage gate (README.md, "Mutation
+# testing").
+# <https://github.com/boxed/mutmut>
+mutation:
+  stage: test
+  needs: [install_deps]
+  <<: *python_settings
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+  allow_failure: true
+  timeout: 6h
+  cache:
+    - <<: *uv-cache
+    - key: mutmut
+      paths:
+        - mutants/
+      policy: pull-push
+  script:
+    - uv run mutmut run
+    # Fails if a module's score is below mutation-baseline.json (monotone ratchet).
+    # Without a baseline file it creates one.
+    - uv run python -m scripts.mutation_ratchet
+  after_script:
+    - uv run mutmut export-cicd-stats
+  artifacts:
+    when: always
+    paths:
+      - mutants/mutmut-cicd-stats.json
+      - mutation-baseline.json
+
 # Deploy
 #
 # Build the documentation.

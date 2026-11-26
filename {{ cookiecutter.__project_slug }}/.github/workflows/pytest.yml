@@ -8,8 +8,7 @@ on:
   push:
   pull_request:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -19,19 +18,30 @@ jobs:
   pytest:
     name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
 {% endraw %}
         python-version: ["{{ cookiecutter.python_version }}", ...]
 {% raw %}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install uv and Python
-        uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - name: Test with python ${{ matrix.python-version }}
         run: uv run --frozen pytest
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          disable_search: true
+          flags: py${{ matrix.python-version }}
+          name: py${{ matrix.python-version }}
 {% endraw %}
+

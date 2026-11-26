@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: {{ cookiecutter.__year }} {{ cookiecutter.author_name }}
+#
+# SPDX-License-Identifier: {{ cookiecutter.license }}
+{% raw %}
+name: pylint
+
+on:
+  push:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # On pull requests, also check out the base commit to compare scores.
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          python-version: 3.14
+      - run: uv sync --locked --no-default-groups --group lint
+      # Report the score; pylint itself never fails the job.
+      - name: Run pylint
+        id: head
+        run: |
+          uv run --no-sync pylint --exit-zero --output-format=text src/autosafe | tee pylint.log
+          score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.log)
+          echo "score=${score}" >> "$GITHUB_OUTPUT"
+          echo "::notice title=pylint score::${score:-undefined}/10"
+          {
+            echo "## pylint score: ${score:-undefined}/10"
+            echo
+            echo "<details><summary>Full report</summary>"
+            echo
+            echo '```text'
+            cat pylint.log
+            echo '```'
+            echo
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Lint the base commit with the same environment and the same
+      # configuration, so the comparison reflects only the code change.
+      - name: Compare with base
+        if: github.event_name == 'pull_request'
+        working-directory: base
+        env:
+          HEAD_SCORE: ${{ steps.head.outputs.score }}
+        run: |
+          uv run --project "$GITHUB_WORKSPACE" --no-sync pylint --exit-zero --rcfile="$GITHUB_WORKSPACE/pyproject.toml" --output-format=text src/autosafe > pylint.log
+          base_score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.log)
+          echo "pylint score: base ${base_score}/10, pull request ${HEAD_SCORE}/10"
+          echo "Base score: ${base_score}/10" >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$HEAD_SCORE" ] || [ -z "$base_score" ]; then
+            echo "::error title=pylint score::Could not determine the score"
+            exit 1
+          fi
+          if awk -v h="$HEAD_SCORE" -v b="$base_score" 'BEGIN { exit !(h < b) }'; then
+            echo "::error title=pylint score::Score dropped from ${base_score}/10 to ${HEAD_SCORE}/10"
+            exit 1
+          fi
+{% endraw %}
